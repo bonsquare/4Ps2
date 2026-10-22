@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { beneficiaryDetails, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -115,6 +115,21 @@ describe('filterRecordsByProvince', () => {
     expect(filterRecordsByProvince(records, 'Davao del Sur')).toEqual([
       { province: 'Davao del Sur', name: 'Ana' },
       { province: 'Davao del Sur', name: 'Cara' },
+    ])
+  })
+})
+
+describe('beneficiaryDetails', () => {
+  it('prepares every available review field for the beneficiary detail window', () => {
+    const record = {
+      id: 'E-001', province: 'Davao de Oro', name: 'Jonny Lausa', municipality: 'Maco', barangay: 'Anislagan',
+      householdId: '1100000121350', accountNumber: '', paymentMode: '', date: null, accomplished: false,
+    }
+
+    expect(beneficiaryDetails(record)).toEqual([
+      ['Entry ID', 'E-001'], ['Province', 'Davao de Oro'], ['Municipality', 'Maco'], ['Barangay', 'Anislagan'],
+      ['Household ID', '1100000121350'], ['Account number', '—'], ['Payment mode', '—'], ['Date claimed / opened', '—'],
+      ['Status', 'For review'],
     ])
   })
 })

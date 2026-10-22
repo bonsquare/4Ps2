@@ -41,6 +41,21 @@ export function filterRecordsByProvince<T extends { province: string }>(records:
   return province ? records.filter((record) => record.province === province) : records
 }
 
+export function beneficiaryDetails(record: ReviewRecord): Array<[string, string]> {
+  const value = (input: string | null) => input || '—'
+  return [
+    ['Entry ID', record.id],
+    ['Province', record.province],
+    ['Municipality', value(record.municipality)],
+    ['Barangay', value(record.barangay)],
+    ['Household ID', value(record.householdId)],
+    ['Account number', value(record.accountNumber)],
+    ['Payment mode', value(record.paymentMode)],
+    ['Date claimed / opened', value(record.date)],
+    ['Status', record.accomplished ? 'Accomplished' : 'For review'],
+  ]
+}
+
 function normalizeDate(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return null

@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { filterRecordsByProvince, paginateRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { beneficiaryDetails, filterRecordsByProvince, paginateRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -58,6 +58,7 @@ const reviewProvinceId = ref('all')
 const reviewQuery = ref('')
 const reviewStatus = ref<'all' | 'accomplished' | 'pending'>('all')
 const reviewPage = ref(1)
+const selectedReviewRecord = ref<ReviewRecord | null>(null)
 const chartOne = ref<HTMLElement | null>(null)
 const chartTwo = ref<HTMLElement | null>(null)
 let firstChart: ECharts | null = null
@@ -475,9 +476,16 @@ onBeforeUnmount(() => {
             <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
           </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
-          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`"><td>{{ record.province }}</td><td><strong>{{ record.name || 'Name not provided' }}</strong></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ record.accomplished ? 'Accomplished' : 'For review' }}</span></td></tr></tbody></table></div>
+          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ record.accomplished ? 'Accomplished' : 'For review' }}</span></td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
         </section>
+        <div v-if="selectedReviewRecord" class="detail-backdrop" role="presentation" @click.self="selectedReviewRecord = null">
+          <section class="beneficiary-dialog" role="dialog" aria-modal="true" aria-labelledby="beneficiary-detail-title">
+            <header><div><p class="eyebrow">Beneficiary details</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
+            <dl><template v-for="[label, value] in beneficiaryDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+            <button class="primary-button compact" @click="selectedReviewRecord = null">Close</button>
+          </section>
+        </div>
         <footer class="refresh-note"><span class="live-dot" :class="{ connected: dataConnected }"></span>{{ dataConnected ? 'Live from Google Sheets' : 'Not connected' }} · Last successful refresh: {{ lastRefresh }} (Asia/Manila)</footer>
       </template>
 
