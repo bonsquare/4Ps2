@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countAccomplishments, extractReviewRecords, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -100,6 +100,22 @@ describe('paginateRecords', () => {
     const records = Array.from({ length: 21 }, (_, index) => `person-${index + 1}`)
 
     expect(paginateRecords(records, 9)).toEqual(['person-21'])
+  })
+})
+
+describe('filterRecordsByProvince', () => {
+  it('keeps all records for the regional view and only matching records for a provincial view', () => {
+    const records = [
+      { province: 'Davao del Sur', name: 'Ana' },
+      { province: 'Davao Oriental', name: 'Ben' },
+      { province: 'Davao del Sur', name: 'Cara' },
+    ]
+
+    expect(filterRecordsByProvince(records)).toEqual(records)
+    expect(filterRecordsByProvince(records, 'Davao del Sur')).toEqual([
+      { province: 'Davao del Sur', name: 'Ana' },
+      { province: 'Davao del Sur', name: 'Cara' },
+    ])
   })
 })
 

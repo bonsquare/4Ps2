@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { paginateRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { filterRecordsByProvince, paginateRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -130,16 +130,18 @@ const isProvinceView = computed(() => activeView.value === 'province' || role.va
 const displayMetrics = computed(() => isProvinceView.value
   ? aggregateProvinces([selectedProvince.value])
   : totals.value)
+const reviewProvinceName = computed(() => {
+  const provinceId = isProvinceView.value ? selectedProvinceId.value : reviewProvinceId.value
+  return provinces.find((province) => province.id === provinceId)?.name
+})
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
-  const provinceName = provinces.find((province) => province.id === reviewProvinceId.value)?.name
-  return reviewRecords.value.filter((record) => {
-    const matchesProvince = reviewProvinceId.value === 'all' || record.province === provinceName
+  return filterRecordsByProvince(reviewRecords.value, reviewProvinceName.value).filter((record) => {
     const matchesStatus = reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
     const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay]
       .some((value) => value.toLowerCase().includes(query))
-    return matchesProvince && matchesStatus && matchesQuery
+    return matchesStatus && matchesQuery
   })
 })
 const reviewTotalPages = computed(() => Math.max(1, Math.ceil(filteredReviewRecords.value.length / REVIEW_PAGE_SIZE)))
@@ -334,7 +336,7 @@ async function loadGoogleSheets() {
 }
 
 watch([activeView, selectedProvinceId, loggedIn], async () => { await nextTick(); makeCharts() })
-watch([reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
+watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
@@ -468,7 +470,7 @@ onBeforeUnmount(() => {
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
-            <label>Province<select v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
+            <label>Province<select v-if="!isProvinceView" v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select><input v-else :value="selectedProvince.name" readonly aria-label="Selected province" /></label>
             <label>Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Accomplished</option><option value="pending">Not accomplished</option></select></label>
             <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
           </div>

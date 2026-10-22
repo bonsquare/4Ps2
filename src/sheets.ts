@@ -37,6 +37,10 @@ export function paginateRecords<T>(records: T[], requestedPage: number, pageSize
   return records.slice((page - 1) * pageSize, page * pageSize)
 }
 
+export function filterRecordsByProvince<T extends { province: string }>(records: T[], province?: string) {
+  return province ? records.filter((record) => record.province === province) : records
+}
+
 function normalizeDate(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return null
