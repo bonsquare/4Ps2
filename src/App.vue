@@ -7,11 +7,12 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
+import { accessState, isSuperAdmin, type UserProfile } from './access'
 
 use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 type Role = 'regional' | 'provincial'
-type View = 'overview' | 'province' | 'reports'
+type View = 'overview' | 'province' | 'reports' | 'approvals'
 
 const provinces = reactive<Province[]>([
   { id: 'sur', name: 'Davao del Sur', target: 1240, accomplished: 986, today: 42 },
@@ -28,6 +29,14 @@ const daily = ref<Array<[string, number]>>([
 
 const currentUser = ref<User | null>(null)
 const loggedIn = computed(() => Boolean(currentUser.value))
+const profile = ref<UserProfile | null>(null)
+const profileBusy = ref(false)
+const profileError = ref('')
+const profileForm = reactive({ fullName: '', position: '', province: '' })
+const pendingProfiles = ref<UserProfile[]>([])
+const approvalsBusy = ref(false)
+const appAccess = computed(() => accessState(profile.value))
+const superAdmin = computed(() => isSuperAdmin(profile.value))
 const authBusy = ref(true)
 const authError = ref('')
 const captchaToken = ref('')
@@ -118,6 +127,70 @@ const displayMetrics = computed(() => isProvinceView.value
 
 const number = new Intl.NumberFormat('en-PH')
 
+function toProfile(record: Record<string, unknown>): UserProfile {
+  return {
+    id: String(record.id),
+    email: String(record.email),
+    fullName: String(record.full_name),
+    position: String(record.position),
+    province: String(record.province),
+    status: record.status as UserProfile['status'],
+    isSuperAdmin: Boolean(record.is_super_admin),
+  }
+}
+
+async function loadProfile(user = currentUser.value) {
+  if (!user || !authClient) return
+  profileBusy.value = true
+  profileError.value = ''
+  const { data, error } = await authClient.from('user_profiles')
+    .select('id, email, full_name, position, province, status, is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (error) profileError.value = 'Unable to check your access. Please try again.'
+  else profile.value = data ? toProfile(data) : null
+  profileBusy.value = false
+}
+
+async function submitProfile() {
+  if (!currentUser.value?.email || !authClient) return
+  profileBusy.value = true
+  profileError.value = ''
+  const { error } = await authClient.from('user_profiles').insert({
+    id: currentUser.value.id,
+    email: currentUser.value.email,
+    full_name: profileForm.fullName.trim(),
+    position: profileForm.position.trim(),
+    province: profileForm.province.trim(),
+  })
+  if (error) profileError.value = error.message
+  else await loadProfile()
+  profileBusy.value = false
+}
+
+async function loadPendingProfiles() {
+  if (!superAdmin.value || !authClient) return
+  approvalsBusy.value = true
+  const { data, error } = await authClient.from('user_profiles')
+    .select('id, email, full_name, position, province, status, is_super_admin')
+    .eq('status', 'pending')
+    .order('requested_at', { ascending: true })
+  if (error) profileError.value = 'Unable to load approval requests.'
+  else pendingProfiles.value = (data ?? []).map(toProfile)
+  approvalsBusy.value = false
+}
+
+async function decideProfile(request: UserProfile, status: 'approved' | 'denied') {
+  if (!authClient || !currentUser.value) return
+  approvalsBusy.value = true
+  const { error } = await authClient.from('user_profiles')
+    .update({ status, decided_at: new Date().toISOString(), decided_by: currentUser.value.id })
+    .eq('id', request.id)
+  if (error) profileError.value = 'Unable to save this decision. Please try again.'
+  else await loadPendingProfiles()
+  approvalsBusy.value = false
+}
+
 async function signInWithGoogleCredential(response: { credential: string }) {
   if (!auth || !captchaToken.value) {
     authError.value = 'Google sign-in is not configured yet. Add the Supabase connection settings to enable it.'
@@ -138,6 +211,7 @@ async function signInWithGoogleCredential(response: { credential: string }) {
 function navigate(view: View) {
   activeView.value = view
   menuOpen.value = false
+  if (view === 'approvals') loadPendingProfiles()
 }
 
 async function refreshData() {
@@ -151,6 +225,7 @@ async function logout() {
   try {
     await auth?.signOut()
     currentUser.value = null
+    profile.value = null
   } catch (error) {
     authError.value = error instanceof Error ? error.message : 'Unable to log out'
   }
@@ -239,11 +314,14 @@ onMounted(async () => {
   if (auth) {
     try {
       currentUser.value = await auth.getUser()
+      await loadProfile()
     } catch (error) {
       authError.value = error instanceof Error ? error.message : 'Unable to restore your sign-in session'
     }
     const listener = authClient?.auth.onAuthStateChange((_event, session) => {
       currentUser.value = session?.user ?? null
+      if (session?.user) loadProfile(session.user)
+      else profile.value = null
       authBusy.value = false
     })
     unsubscribeAuth = () => listener?.data.subscription.unsubscribe()
@@ -286,6 +364,39 @@ onBeforeUnmount(() => {
     </aside>
   </main>
 
+  <main v-else-if="profileBusy" class="login-shell">
+    <section class="login-panel"><p class="eyebrow">Checking access</p><h1>One moment…</h1><p class="login-copy">We are securely checking your account status.</p></section>
+    <aside class="login-context" aria-label="System overview"></aside>
+  </main>
+
+  <main v-else-if="appAccess === 'profile'" class="login-shell">
+    <section class="login-panel" aria-labelledby="profile-title">
+      <div class="seal" aria-hidden="true">XI</div>
+      <p class="eyebrow">First-time sign-in</p>
+      <h1 id="profile-title">Tell us about yourself</h1>
+      <p class="login-copy">Your account will be reviewed by the Super Administrator before dashboard access is granted.</p>
+      <div v-if="profileError" class="auth-error" role="alert">{{ profileError }}</div>
+      <form class="profile-form" @submit.prevent="submitProfile">
+        <label>Full name<input v-model="profileForm.fullName" required autocomplete="name" /></label>
+        <label>Position<input v-model="profileForm.position" required autocomplete="organization-title" /></label>
+        <label>Province<select v-model="profileForm.province" required><option disabled value="">Select your province</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
+        <button class="primary-button" :disabled="profileBusy">{{ profileBusy ? 'Submitting…' : 'Submit for approval' }}</button>
+      </form>
+      <button class="secondary-button" @click="logout">Sign out</button>
+    </section>
+    <aside class="login-context" aria-label="Approval process"><div><span class="context-kicker">Secure access</span><h2>Approved people only.</h2><p>Complete the short profile form. The Super Administrator will review your request in the application.</p></div></aside>
+  </main>
+
+  <main v-else-if="appAccess === 'pending'" class="login-shell">
+    <section class="login-panel"><div class="seal" aria-hidden="true">XI</div><p class="eyebrow">Request received</p><h1>Waiting for approval</h1><p class="login-copy">Your request has been submitted. You will be able to use the dashboard after the Super Administrator approves your account.</p><button class="secondary-button" @click="() => loadProfile()">Check again</button><button class="secondary-button" @click="logout">Sign out</button></section>
+    <aside class="login-context" aria-label="Approval process"><div><span class="context-kicker">Secure access</span><h2>Your request is in review.</h2></div></aside>
+  </main>
+
+  <main v-else-if="appAccess === 'denied'" class="login-shell">
+    <section class="login-panel"><div class="seal" aria-hidden="true">XI</div><p class="eyebrow">Access unavailable</p><h1>Request not approved</h1><p class="login-copy">This account does not currently have access to the dashboard. Please contact the Regional Operations Office if you need assistance.</p><button class="secondary-button" @click="logout">Sign out</button></section>
+    <aside class="login-context" aria-label="Access unavailable"></aside>
+  </main>
+
   <div v-else class="app-shell">
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
@@ -298,12 +409,13 @@ onBeforeUnmount(() => {
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
+        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>✓</i>Approvals</button>
       </nav>
       <button class="logout" @click="logout"><i>↪</i>Log out</button>
     </aside>
 
     <main class="content">
-      <template v-if="activeView !== 'reports'">
+      <template v-if="activeView !== 'reports' && activeView !== 'approvals'">
         <section class="page-heading">
           <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name : 'Regional overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
           <div class="heading-actions">
@@ -328,7 +440,7 @@ onBeforeUnmount(() => {
         <footer class="refresh-note"><span class="live-dot" :class="{ connected: dataConnected }"></span>{{ dataConnected ? 'Live from Google Sheets' : 'Not connected' }} · Last successful refresh: {{ lastRefresh }} (Asia/Manila)</footer>
       </template>
 
-      <template v-else>
+      <template v-else-if="activeView === 'reports'">
         <section class="page-heading"><div><p class="breadcrumb">Reports & printing</p><h1>Report Center</h1><p>Configure and preview an official accomplishment report.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
         <section class="report-layout">
           <aside class="report-controls card"><h2>Report settings</h2><label>Report type<select><option>Accomplishment Summary</option><option>Target vs. Actual</option><option>Daily Accomplishment</option></select></label><label v-if="role === 'regional'">Reporting scope<select><option>Regional – All provinces</option><option v-for="item in provinces" :key="item.id">{{ item.name }}</option></select></label><label>Paper size<select><option>A4</option><option>Legal</option></select></label><label>Orientation<select><option>Portrait</option><option>Landscape</option></select></label><div class="sample-notice"><strong>Preview mode</strong><span>Uses sample data in Phase 1.</span></div></aside>
@@ -341,6 +453,11 @@ onBeforeUnmount(() => {
             <footer>Generated October 22, 2026 · 10:48 PM (Asia/Manila)<span>Page 1 of 1</span></footer>
           </article>
         </section>
+      </template>
+
+      <template v-else>
+        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Approvals</p><h1>Access approvals</h1><p>Review new account requests. Approved users receive full dashboard access.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadPendingProfiles">{{ approvalsBusy ? 'Refreshing…' : 'Refresh requests' }}</button></section>
+        <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><p v-if="!approvalsBusy && pendingProfiles.length === 0" class="empty-state">There are no pending approval requests.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Action</th></tr></thead><tbody><tr v-for="request in pendingProfiles" :key="request.id"><td><strong>{{ request.fullName }}</strong></td><td>{{ request.email }}</td><td>{{ request.position }}</td><td>{{ request.province }}</td><td class="approval-actions"><button class="approve-button" :disabled="approvalsBusy" @click="decideProfile(request, 'approved')">Approve</button><button class="deny-button" :disabled="approvalsBusy" @click="decideProfile(request, 'denied')">Deny</button></td></tr></tbody></table></div></section>
       </template>
     </main>
   </div>
