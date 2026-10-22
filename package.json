@@ -9,12 +9,13 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "@vitejs/plugin-vue": "latest",
     "echarts": "latest",
     "papaparse": "5.5.3",
+    "vite": "latest",
     "vue": "latest",
-    "vue-echarts": "latest",
-    "vite": "latest"
+    "vue-echarts": "latest"
   },
   "devDependencies": {
     "@tailwindcss/vite": "latest",

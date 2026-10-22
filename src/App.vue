@@ -4,7 +4,9 @@ import { init, use, type ECharts } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
+import { auth, authClient, authConfigured } from './auth'
 
 use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -24,7 +26,10 @@ const daily = ref<Array<[string, number]>>([
   ['Oct 20', 154], ['Oct 21', 189], ['Oct 22', 185],
 ])
 
-const loggedIn = ref(false)
+const currentUser = ref<User | null>(null)
+const loggedIn = computed(() => Boolean(currentUser.value))
+const authBusy = ref(true)
+const authError = ref('')
 const role = ref<Role>('regional')
 const activeView = ref<View>('overview')
 const selectedProvinceId = ref('sur')
@@ -39,6 +44,7 @@ const chartTwo = ref<HTMLElement | null>(null)
 let firstChart: ECharts | null = null
 let secondChart: ECharts | null = null
 let refreshTimer: number | undefined
+let unsubscribeAuth: (() => void) | undefined
 
 const totals = computed(() => aggregateProvinces(provinces))
 const selectedProvince = computed(() => provinces.find((item) => item.id === selectedProvinceId.value) ?? provinces[0])
@@ -49,11 +55,19 @@ const displayMetrics = computed(() => isProvinceView.value
 
 const number = new Intl.NumberFormat('en-PH')
 
-function signIn(asRole: Role) {
-  role.value = asRole
-  if (asRole === 'provincial') selectedProvinceId.value = 'sur'
-  activeView.value = asRole === 'regional' ? 'overview' : 'province'
-  loggedIn.value = true
+async function signIn() {
+  if (!auth) {
+    authError.value = 'Google sign-in is not configured yet. Add the Supabase connection settings to enable it.'
+    return
+  }
+  authBusy.value = true
+  authError.value = ''
+  try {
+    await auth.signInWithGoogle()
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : 'Unable to sign in with Google'
+    authBusy.value = false
+  }
 }
 
 function navigate(view: View) {
@@ -67,8 +81,15 @@ async function refreshData() {
   refreshing.value = false
 }
 
-function logout() {
-  loggedIn.value = false
+async function logout() {
+  authBusy.value = true
+  try {
+    await auth?.signOut()
+    currentUser.value = null
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : 'Unable to log out'
+  }
+  authBusy.value = false
   menuOpen.value = false
   firstChart?.dispose(); secondChart?.dispose()
 }
@@ -147,9 +168,22 @@ async function loadGoogleSheets() {
 }
 
 watch([activeView, selectedProvinceId, loggedIn], async () => { await nextTick(); makeCharts() })
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('resize', handleResize)
   loadGoogleSheets()
+  if (auth) {
+    try {
+      currentUser.value = await auth.getUser()
+    } catch (error) {
+      authError.value = error instanceof Error ? error.message : 'Unable to restore your sign-in session'
+    }
+    const listener = authClient?.auth.onAuthStateChange((_event, session) => {
+      currentUser.value = session?.user ?? null
+      authBusy.value = false
+    })
+    unsubscribeAuth = () => listener?.data.subscription.unsubscribe()
+  }
+  authBusy.value = false
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value && document.visibilityState === 'visible') refreshData()
   }, 60_000)
@@ -157,6 +191,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   if (refreshTimer) window.clearInterval(refreshTimer)
+  unsubscribeAuth?.()
   firstChart?.dispose(); secondChart?.dispose()
 })
 </script>
@@ -169,13 +204,13 @@ onBeforeUnmount(() => {
       <h1 id="login-title">Daily Accomplishment Monitor</h1>
       <p class="login-copy">Secure access to regional and provincial performance dashboards.</p>
       <div class="sample-notice"><strong>Phase 1 prototype</strong><span>{{ dataConnected ? 'Live Google Sheets data is connected.' : 'Connecting to Google Sheets…' }}</span></div>
-      <form @submit.prevent="signIn('regional')">
-        <label for="email">Email address</label><input id="email" type="email" value="regional@example.gov.ph" autocomplete="email" />
-        <label for="password">Password</label><input id="password" type="password" value="demopassword" autocomplete="current-password" />
-        <button class="primary-button" type="submit">Sign in to regional dashboard</button>
-      </form>
-      <button class="secondary-button" type="button" @click="signIn('provincial')">Preview provincial account</button>
-      <p class="security-note">Authentication will be connected to Supabase in Phase 3.</p>
+      <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
+      <button class="google-button" type="button" :disabled="authBusy || !authConfigured" @click="signIn">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4.3h5.4a4.6 4.6 0 0 1-2 3v2.8h3.5c2-1.9 3.2-4.6 3.2-7.9Z"/><path fill="#34A853" d="M12 22c2.9 0 5.3-.9 7-2.6l-3.5-2.8c-.9.6-2.1 1-3.5 1a6.2 6.2 0 0 1-5.8-4.2H2.6v2.8A10.6 10.6 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.2 13.4A6.3 6.3 0 0 1 6.2 9V6.2H2.6A10.6 10.6 0 0 0 2.6 16l3.6-2.7Z"/><path fill="#EA4335" d="M12 4.4c1.6 0 3 .5 4.1 1.6l3.1-3A10.3 10.3 0 0 0 2.6 6.2L6.2 9A6.2 6.2 0 0 1 12 4.4Z"/></svg>
+        {{ authBusy ? 'Checking account…' : 'Continue with Google' }}
+      </button>
+      <p class="security-note">Use your Gmail or Google Workspace corporate email.</p>
+      <p v-if="!authConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
     </section>
     <aside class="login-context" aria-label="System overview">
       <div><span class="context-kicker">One clear regional view</span><h2>From daily encoding to decisions.</h2><p>Provincial teams keep their existing Google Sheets workflow. Regional leaders get a consolidated, always-current picture.</p></div>
@@ -190,7 +225,7 @@ onBeforeUnmount(() => {
       <div class="topbar-actions"><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><button class="avatar" aria-label="Open account menu">{{ role === 'regional' ? 'RA' : 'DS' }}</button></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
-      <div class="role-card"><span>Signed in as</span><strong>{{ role === 'regional' ? 'Regional Administrator' : 'Davao del Sur Account' }}</strong></div>
+      <div class="role-card"><span>Signed in as</span><strong>{{ currentUser?.email ?? 'Google account' }}</strong></div>
       <nav aria-label="Main navigation">
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>

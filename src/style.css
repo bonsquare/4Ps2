@@ -21,6 +21,13 @@ input, select { width: 100%; min-height: 44px; border: 1px solid #ccd6df; border
 .primary-button:hover { background: #11654e; transform: translateY(-1px); }
 .secondary-button { width: 100%; margin-top: 10px; background: white; color: #225174; border-color: #bac9d5; }
 .security-note { text-align: center; color: #7b8997; font-size: 12px; }
+.google-button { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 22px; border: 1px solid #b9c5cf; border-radius: 8px; background: white; color: #263b4d; font-weight: 750; box-shadow: 0 2px 8px rgba(24,49,73,.08); transition: .18s ease; }
+.google-button:hover:not(:disabled) { border-color: #7d929f; background: #f8fafb; transform: translateY(-1px); }
+.google-button:disabled { opacity: .55; cursor: not-allowed; }
+.google-button svg { width: 21px; height: 21px; flex: 0 0 auto; }
+.auth-error, .setup-note { padding: 11px 13px; border-radius: 8px; font-size: 12px; line-height: 1.45; }
+.auth-error { margin-top: 18px; border: 1px solid #edc2c2; background: #fff1f1; color: #842929; }
+.setup-note { border: 1px solid #e5d39d; background: #fff9e8; color: #6d5518; text-align: center; }
 .login-context { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(50px, 8vw, 110px); color: white; background: linear-gradient(145deg, rgba(13,49,73,.92), rgba(15,104,79,.9)), radial-gradient(circle at 80% 10%, #46b48f, transparent 45%); }
 .login-context::after { content: ''; position: absolute; width: 480px; height: 480px; right: -140px; bottom: -180px; border: 80px solid rgba(255,255,255,.05); border-radius: 50%; }
 .context-kicker { color: #a6e7ce; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
