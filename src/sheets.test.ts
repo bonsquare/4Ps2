@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countAccomplishments, extractReviewRecords, getAccomplishmentSnapshot, summarizeWorksheet } from './sheets'
+import { countAccomplishments, extractReviewRecords, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -86,6 +86,20 @@ describe('extractReviewRecords', () => {
         householdId: 'HH-002', accountNumber: 'AC-002', paymentMode: '', date: null, accomplished: false,
       },
     ])
+  })
+})
+
+describe('paginateRecords', () => {
+  it('returns only twenty records for the selected page', () => {
+    const records = Array.from({ length: 45 }, (_, index) => `person-${index + 1}`)
+
+    expect(paginateRecords(records, 2)).toEqual(records.slice(20, 40))
+  })
+
+  it('uses the final available page when the requested page is too high', () => {
+    const records = Array.from({ length: 21 }, (_, index) => `person-${index + 1}`)
+
+    expect(paginateRecords(records, 9)).toEqual(['person-21'])
   })
 })
 

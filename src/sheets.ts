@@ -12,6 +12,7 @@ export const WORKSHEETS = [
 ] as const
 
 const VALID_MODE = /\b(?:cash\s*card|e[\s-]*wallet)\b/i
+export const REVIEW_PAGE_SIZE = 20
 
 export type ReviewRecord = {
   id: string
@@ -28,6 +29,12 @@ export type ReviewRecord = {
 
 export function countAccomplishments(rows: string[][]) {
   return rows.filter((row) => row.some((cell) => VALID_MODE.test(String(cell).trim()))).length
+}
+
+export function paginateRecords<T>(records: T[], requestedPage: number, pageSize = REVIEW_PAGE_SIZE) {
+  const totalPages = Math.max(1, Math.ceil(records.length / pageSize))
+  const page = Math.min(Math.max(1, requestedPage), totalPages)
+  return records.slice((page - 1) * pageSize, page * pageSize)
 }
 
 function normalizeDate(value: string) {
