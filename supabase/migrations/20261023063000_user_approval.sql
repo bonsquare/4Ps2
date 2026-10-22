@@ -13,6 +13,10 @@ create table if not exists public.user_profiles (
 
 alter table public.user_profiles enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update on public.user_profiles to authenticated;
+grant all on public.user_profiles to service_role;
+
 create or replace function public.is_super_admin()
 returns boolean
 language sql
