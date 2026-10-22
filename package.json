@@ -1,0 +1,28 @@
+{
+  "name": "regional-accomplishment-monitor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "latest",
+    "echarts": "latest",
+    "papaparse": "5.5.3",
+    "vue": "latest",
+    "vue-echarts": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "latest",
+    "@types/node": "latest",
+    "@types/papaparse": "5.5.2",
+    "tailwindcss": "latest",
+    "typescript": "6.0.2",
+    "vitest": "latest",
+    "vue-tsc": "latest"
+  }
+}
