@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { auth, authClient, authConfigured } from './auth'
+import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 
 use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -30,6 +30,10 @@ const currentUser = ref<User | null>(null)
 const loggedIn = computed(() => Boolean(currentUser.value))
 const authBusy = ref(true)
 const authError = ref('')
+const captchaToken = ref('')
+const captchaMessage = ref('Loading security check…')
+const turnstileMount = ref<HTMLElement | null>(null)
+const googleButtonMount = ref<HTMLElement | null>(null)
 const role = ref<Role>('regional')
 const activeView = ref<View>('overview')
 const selectedProvinceId = ref('sur')
@@ -45,6 +49,65 @@ let firstChart: ECharts | null = null
 let secondChart: ECharts | null = null
 let refreshTimer: number | undefined
 let unsubscribeAuth: (() => void) | undefined
+let turnstileWidgetId: string | undefined
+
+type TurnstileApi = {
+  render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void }) => string
+  reset: (widgetId?: string) => void
+}
+
+type GoogleIdentityApi = {
+  accounts: { id: { initialize: (options: { client_id: string; callback: (response: { credential: string }) => void }) => void; renderButton: (element: HTMLElement, options: Record<string, string | number>) => void } }
+}
+
+function loadScript(id: string, src: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (document.getElementById(id)) return resolve()
+    const script = document.createElement('script')
+    script.id = id
+    script.src = src
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Unable to load the sign-in security service.'))
+    document.head.append(script)
+  })
+}
+
+function resetCaptcha() {
+  captchaToken.value = ''
+  captchaMessage.value = 'Complete the security check before continuing.'
+  const api = (window as Window & { turnstile?: TurnstileApi }).turnstile
+  if (api) api.reset(turnstileWidgetId)
+}
+
+function renderGoogleButton() {
+  if (!captchaToken.value || !googleButtonMount.value || !googleClientId) return
+  const google = (window as Window & { google?: GoogleIdentityApi }).google
+  if (!google?.accounts?.id) return
+  googleButtonMount.value.replaceChildren()
+  google.accounts.id.initialize({ client_id: googleClientId, callback: signInWithGoogleCredential })
+  google.accounts.id.renderButton(googleButtonMount.value, { theme: 'outline', size: 'large', width: 320, text: 'continue_with' })
+}
+
+async function setupLoginSecurity() {
+  if (!turnstileMount.value || !turnstileSiteKey) return
+  try {
+    await Promise.all([
+      loadScript('cloudflare-turnstile', 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'),
+      loadScript('google-identity-services', 'https://accounts.google.com/gsi/client'),
+    ])
+    const api = (window as Window & { turnstile?: TurnstileApi }).turnstile
+    if (!api) throw new Error('Unable to start the security check.')
+    turnstileWidgetId = api.render(turnstileMount.value, {
+      sitekey: turnstileSiteKey,
+      callback: (token) => { captchaToken.value = token; captchaMessage.value = 'Security check complete. You can continue with Google.'; nextTick(renderGoogleButton) },
+      'expired-callback': resetCaptcha,
+      'error-callback': () => { captchaToken.value = ''; captchaMessage.value = 'Security check unavailable. Refresh and try again.' },
+    })
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : 'Unable to load sign-in security.'
+  }
+}
 
 const totals = computed(() => aggregateProvinces(provinces))
 const selectedProvince = computed(() => provinces.find((item) => item.id === selectedProvinceId.value) ?? provinces[0])
@@ -55,17 +118,19 @@ const displayMetrics = computed(() => isProvinceView.value
 
 const number = new Intl.NumberFormat('en-PH')
 
-async function signIn() {
-  if (!auth) {
+async function signInWithGoogleCredential(response: { credential: string }) {
+  if (!auth || !captchaToken.value) {
     authError.value = 'Google sign-in is not configured yet. Add the Supabase connection settings to enable it.'
     return
   }
   authBusy.value = true
   authError.value = ''
   try {
-    await auth.signInWithGoogle()
+    await auth.signInWithGoogleIdToken(response.credential, captchaToken.value)
   } catch (error) {
     authError.value = error instanceof Error ? error.message : 'Unable to sign in with Google'
+  } finally {
+    resetCaptcha()
     authBusy.value = false
   }
 }
@@ -184,6 +249,8 @@ onMounted(async () => {
     unsubscribeAuth = () => listener?.data.subscription.unsubscribe()
   }
   authBusy.value = false
+  await nextTick()
+  if (authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value && document.visibilityState === 'visible') refreshData()
   }, 60_000)
@@ -205,12 +272,13 @@ onBeforeUnmount(() => {
       <p class="login-copy">Secure access to regional and provincial performance dashboards.</p>
       <div class="sample-notice"><strong>Phase 1 prototype</strong><span>{{ dataConnected ? 'Live Google Sheets data is connected.' : 'Connecting to Google Sheets…' }}</span></div>
       <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
-      <button class="google-button" type="button" :disabled="authBusy || !authConfigured" @click="signIn">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4.3h5.4a4.6 4.6 0 0 1-2 3v2.8h3.5c2-1.9 3.2-4.6 3.2-7.9Z"/><path fill="#34A853" d="M12 22c2.9 0 5.3-.9 7-2.6l-3.5-2.8c-.9.6-2.1 1-3.5 1a6.2 6.2 0 0 1-5.8-4.2H2.6v2.8A10.6 10.6 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.2 13.4A6.3 6.3 0 0 1 6.2 9V6.2H2.6A10.6 10.6 0 0 0 2.6 16l3.6-2.7Z"/><path fill="#EA4335" d="M12 4.4c1.6 0 3 .5 4.1 1.6l3.1-3A10.3 10.3 0 0 0 2.6 6.2L6.2 9A6.2 6.2 0 0 1 12 4.4Z"/></svg>
-        {{ authBusy ? 'Checking account…' : 'Continue with Google' }}
-      </button>
+      <div class="captcha-block">
+        <div ref="turnstileMount" aria-label="Security verification"></div>
+        <p class="security-note">{{ captchaMessage }}</p>
+      </div>
+      <div v-show="captchaToken && !authBusy" ref="googleButtonMount" class="google-button-mount" aria-label="Continue with Google"></div>
       <p class="security-note">Use your Gmail or Google Workspace corporate email.</p>
-      <p v-if="!authConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
+      <p v-if="!authConfigured || !googleSignInConfigured || !turnstileConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
     </section>
     <aside class="login-context" aria-label="System overview">
       <div><span class="context-kicker">One clear regional view</span><h2>From daily encoding to decisions.</h2><p>Provincial teams keep their existing Google Sheets workflow. Regional leaders get a consolidated, always-current picture.</p></div>

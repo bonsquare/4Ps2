@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 import { createAuthController, type AuthClient } from './auth'
 
 describe('Google authentication', () => {
+  it('submits a Google ID token together with the Turnstile token', async () => {
+    const signInWithIdToken = vi.fn().mockResolvedValue({ error: null })
+    const client = { auth: { signInWithIdToken } } as unknown as AuthClient
+    const auth = createAuthController(client)
+
+    await auth.signInWithGoogleIdToken('google-id-token', 'turnstile-token')
+
+    expect(signInWithIdToken).toHaveBeenCalledWith({
+      provider: 'google',
+      token: 'google-id-token',
+      options: { captchaToken: 'turnstile-token' },
+    })
+  })
+
   it('starts Google OAuth for Gmail and Google Workspace accounts', async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ error: null })
     const client = { auth: { signInWithOAuth } } as unknown as AuthClient
