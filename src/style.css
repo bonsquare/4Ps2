@@ -71,3 +71,6 @@ input, select { width: 100%; min-height: 44px; border: 1px solid #ccd6df; border
 @media (max-width: 430px) { .metrics { grid-template-columns: 1fr; }.metrics article { min-height: 105px; }.heading-actions { flex-direction: column; align-items: stretch; }.refresh-button { width: 100%; }.province-picker { align-items: stretch; flex-direction: column; }.report-paper { font-size: 11px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 @media print { @page { size: A4 portrait; margin: 15mm; } body { background: white; } .topbar, .sidebar, .page-heading, .report-controls { display: none !important; } .content { margin: 0; padding: 0; }.report-layout { display: block; }.report-paper { box-shadow: none; min-height: 0; padding: 0; }.report-paper thead { display: table-header-group; }.report-paper tr { break-inside: avoid; } }
+
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: #f1f5f9; }
