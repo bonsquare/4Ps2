@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countAccomplishments, getAccomplishmentSnapshot, summarizeWorksheet } from './sheets'
+import { countAccomplishments, extractReviewRecords, getAccomplishmentSnapshot, summarizeWorksheet } from './sheets'
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -67,6 +67,28 @@ describe('summarizeWorksheet', () => {
   })
 })
 
+describe('extractReviewRecords', () => {
+  it('returns valid beneficiary rows with province, payment status, and safe review fields', () => {
+    const csv = [
+      'PROVINCE,Entry_id,GRANTEE FIRST_NAME,GRANTEE LAST_NAME,MUNICIPALITY,BARANGAY,Household ID,Account Number,ACCOUNT DESCRIPTION/Mode of Payment,Date Claimed/Account Opened',
+      'DAVAO DEL SUR,E-001,Ana,Cruz,Digos,San Jose,HH-001,AC-001,Cash Card,10/05/2026',
+      'DAVAO DEL SUR,E-002,Ben,Santos,Bansalan,Poblacion,HH-002,AC-002,,,',
+      'DAVAO DEL SUR,,Cara,Reyes,Digos,Aplaya,HH-003,AC-003,E-Wallet,10/06/2026',
+    ].join('\n')
+
+    expect(extractReviewRecords(csv, 'Davao del Sur')).toEqual([
+      {
+        id: 'E-001', province: 'Davao del Sur', name: 'Ana Cruz', municipality: 'Digos', barangay: 'San Jose',
+        householdId: 'HH-001', accountNumber: 'AC-001', paymentMode: 'Cash Card', date: '2026-10-05', accomplished: true,
+      },
+      {
+        id: 'E-002', province: 'Davao del Sur', name: 'Ben Santos', municipality: 'Bansalan', barangay: 'Poblacion',
+        householdId: 'HH-002', accountNumber: 'AC-002', paymentMode: '', date: null, accomplished: false,
+      },
+    ])
+  })
+})
+
 describe('getAccomplishmentSnapshot', () => {
   it('uses each province worksheet as its target source without reading Initial List', async () => {
     const requestedUrls: string[] = []
@@ -84,5 +106,7 @@ describe('getAccomplishmentSnapshot', () => {
 
     expect(requestedUrls.some((url) => url.includes('Initial%20List'))).toBe(false)
     expect(snapshot.provinces.every((province) => province.target === 2 && province.accomplished === 1)).toBe(true)
+    expect(snapshot.records).toHaveLength(12)
+    expect(snapshot.records[0]).toMatchObject({ id: 'E-001', province: 'Davao Oriental', accomplished: true })
   })
 })

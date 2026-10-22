@@ -6,6 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
+import type { ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -52,6 +53,10 @@ const refreshing = ref(false)
 const lastRefresh = ref('Oct 22, 2026 · 10:48 PM')
 const dataConnected = ref(false)
 const dataError = ref('')
+const reviewRecords = ref<ReviewRecord[]>([])
+const reviewProvinceId = ref('all')
+const reviewQuery = ref('')
+const reviewStatus = ref<'all' | 'accomplished' | 'pending'>('all')
 const chartOne = ref<HTMLElement | null>(null)
 const chartTwo = ref<HTMLElement | null>(null)
 let firstChart: ECharts | null = null
@@ -124,6 +129,18 @@ const isProvinceView = computed(() => activeView.value === 'province' || role.va
 const displayMetrics = computed(() => isProvinceView.value
   ? aggregateProvinces([selectedProvince.value])
   : totals.value)
+const filteredReviewRecords = computed(() => {
+  const query = reviewQuery.value.trim().toLowerCase()
+  const provinceName = provinces.find((province) => province.id === reviewProvinceId.value)?.name
+  return reviewRecords.value.filter((record) => {
+    const matchesProvince = reviewProvinceId.value === 'all' || record.province === provinceName
+    const matchesStatus = reviewStatus.value === 'all'
+      || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
+    const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay]
+      .some((value) => value.toLowerCase().includes(query))
+    return matchesProvince && matchesStatus && matchesQuery
+  })
+})
 
 const number = new Intl.NumberFormat('en-PH')
 
@@ -287,9 +304,11 @@ async function loadGoogleSheets() {
     const snapshot = await response.json() as {
       provinces: Province[]
       daily: Array<{ date: string; value: number }>
+      records: ReviewRecord[]
       lastRefresh: string
     }
     provinces.splice(0, provinces.length, ...snapshot.provinces)
+    reviewRecords.value = snapshot.records ?? []
     daily.value = snapshot.daily.slice(-14).map((item) => [
       new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${item.date}T00:00:00+08:00`)),
       item.value,
@@ -437,6 +456,16 @@ onBeforeUnmount(() => {
           <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ period }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
         </section>
         <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td><span class="table-percent">{{ item.target ? `${Math.round(item.accomplished / item.target * 100)}%` : '—' }}</span></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
+        <section class="card review-table" aria-labelledby="review-title">
+          <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
+          <div class="review-filters">
+            <label>Province<select v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
+            <label>Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Accomplished</option><option value="pending">Not accomplished</option></select></label>
+            <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
+          </div>
+          <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
+          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in filteredReviewRecords" :key="`${record.province}-${record.id}`"><td>{{ record.province }}</td><td><strong>{{ record.name || 'Name not provided' }}</strong></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ record.accomplished ? 'Accomplished' : 'For review' }}</span></td></tr></tbody></table></div>
+        </section>
         <footer class="refresh-note"><span class="live-dot" :class="{ connected: dataConnected }"></span>{{ dataConnected ? 'Live from Google Sheets' : 'Not connected' }} · Last successful refresh: {{ lastRefresh }} (Asia/Manila)</footer>
       </template>
 
