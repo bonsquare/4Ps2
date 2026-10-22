@@ -8,7 +8,7 @@ type ServerResponse = {
 export default async function handler(_request: unknown, response: ServerResponse) {
   try {
     const snapshot = await getAccomplishmentSnapshot()
-    response.setHeader('Cache-Control', 'private, max-age=0, s-maxage=45, stale-while-revalidate=15')
+    response.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
     response.status(200).json(snapshot)
   } catch (error) {
     response.status(502).json({ error: error instanceof Error ? error.message : 'Unable to read Google Sheets' })

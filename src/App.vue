@@ -240,7 +240,7 @@ function navigate(view: View) {
 
 async function refreshData() {
   refreshing.value = true
-  await loadGoogleSheets()
+  await loadGoogleSheets(true)
   refreshing.value = false
 }
 
@@ -308,9 +308,10 @@ function makeCharts() {
 
 function handleResize() { firstChart?.resize(); secondChart?.resize() }
 
-async function loadGoogleSheets() {
+// force bypasses the CDN cache so the Refresh button always pulls live sheet data.
+async function loadGoogleSheets(force = false) {
   try {
-    const response = await fetch('/sheet-data')
+    const response = await fetch(force ? `/sheet-data?t=${Date.now()}` : '/sheet-data')
     if (!response.ok) throw new Error('Google Sheets returned an error')
     const snapshot = await response.json() as {
       provinces: Province[]
