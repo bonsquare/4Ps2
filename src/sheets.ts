@@ -52,7 +52,7 @@ export function beneficiaryDetails(record: ReviewRecord): Array<[string, string]
     ['Account number', value(record.accountNumber)],
     ['Payment mode', value(record.paymentMode)],
     ['Date claimed / opened', value(record.date)],
-    ['Status', record.accomplished ? 'Accomplished' : 'For review'],
+    ['Status', record.accomplished ? 'Accomplished' : 'For Validation'],
   ]
 }
 

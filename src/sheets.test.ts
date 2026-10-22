@@ -129,7 +129,7 @@ describe('beneficiaryDetails', () => {
     expect(beneficiaryDetails(record)).toEqual([
       ['Entry ID', 'E-001'], ['Province', 'Davao de Oro'], ['Municipality', 'Maco'], ['Barangay', 'Anislagan'],
       ['Household ID', '1100000121350'], ['Account number', '—'], ['Payment mode', '—'], ['Date claimed / opened', '—'],
-      ['Status', 'For review'],
+      ['Status', 'For Validation'],
     ])
   })
 })
