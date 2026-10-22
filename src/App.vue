@@ -139,7 +139,7 @@ const reviewProvinceName = computed(() => {
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
   return filterRecordsByProvince(reviewRecords.value, reviewProvinceName.value).filter((record) => {
-    const matchesStatus = reviewStatus.value === 'all'
+    const matchesStatus = !isProvinceView.value ? record.accomplished : reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
     const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay]
       .some((value) => value.toLowerCase().includes(query))
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
             <label>Province<select v-if="!isProvinceView" v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select><input v-else :value="selectedProvince.name" readonly aria-label="Selected province" /></label>
-            <label>Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Accomplished</option><option value="pending">Not accomplished</option></select></label>
+            <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Accomplished</option><option value="pending">Not accomplished</option></select></label>
             <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
           </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
