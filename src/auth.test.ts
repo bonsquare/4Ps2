@@ -25,6 +25,16 @@ describe('Google authentication', () => {
     await expect(auth.getUser()).resolves.toEqual(user)
   })
 
+  it('treats a missing first-visit session as signed out, not as an error', async () => {
+    const error = Object.assign(new Error('Auth session missing!'), { name: 'AuthSessionMissingError' })
+    const client = {
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error }) },
+    } as unknown as AuthClient
+    const auth = createAuthController(client)
+
+    await expect(auth.getUser()).resolves.toBeNull()
+  })
+
   it('signs the current user out', async () => {
     const signOut = vi.fn().mockResolvedValue({ error: null })
     const client = { auth: { signOut } } as unknown as AuthClient

@@ -25,6 +25,7 @@ export function createAuthController(client: AuthClient, getRedirectUrl = () => 
     },
     async getUser() {
       const { data, error } = await client.auth.getUser()
+      if (error?.name === 'AuthSessionMissingError') return null
       if (error) throw error
       return data.user
     },
