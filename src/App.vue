@@ -23,10 +23,18 @@ const provinces = reactive<Province[]>([
   { id: 'occidental', name: 'Davao Occidental', target: 760, accomplished: 604, today: 26 },
 ])
 
-const daily = ref<Array<[string, number]>>([
-  ['Oct 16', 148], ['Oct 17', 162], ['Oct 18', 131], ['Oct 19', 176],
-  ['Oct 20', 154], ['Oct 21', 189], ['Oct 22', 185],
-])
+// The daily chart always shows the last 7 days (Asia/Manila), with 0 for days that have no accomplishments.
+const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
+function lastSevenDays(values: Record<string, number>): Array<[string, number]> {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = manilaDate(6 - index)
+    const day = new Date(`${date}T00:00:00+08:00`)
+    const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }).format(day)
+    const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(day)
+    return [`${weekday}\n${monthDay}`, values[date] ?? 0]
+  })
+}
+const daily = ref<Array<[string, number]>>(lastSevenDays({}))
 
 const currentUser = ref<User | null>(null)
 const loggedIn = computed(() => Boolean(currentUser.value))
@@ -305,13 +313,13 @@ function makeCharts() {
       xAxis: { type: 'category', data: provinces.map(p => p.name.replace('Davao ', '')), axisLabel: { ...text, interval: 0, rotate: 22 } },
       yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [
-        { name: 'Target', type: 'bar', data: provinces.map(p => p.target), itemStyle: { color: '#b8c8d8', borderRadius: [4, 4, 0, 0] } },
+        { name: 'Target', type: 'bar', data: provinces.map(p => p.target), itemStyle: { color: '#b8c8d8', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', color: '#5b6f84', fontWeight: 700, formatter: (item: { value: unknown }) => number.format(Number(item.value)) } },
         { name: 'Actual', type: 'bar', data: provinces.map(p => p.accomplished), itemStyle: { color: '#17795f', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } },
       ],
     })
     secondChart.setOption({
       grid: { left: 48, right: 18, top: 40, bottom: 38 }, tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: text }, yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
+      xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } }, yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{ type: 'bar', data: daily.value.map(d => d[1]), barWidth: '48%', itemStyle: { color: '#1d5b91', borderRadius: [5, 5, 0, 0] }, label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } }],
     })
   }
@@ -337,10 +345,7 @@ async function loadGoogleSheets(force = false) {
     }
     provinces.splice(0, provinces.length, ...snapshot.provinces)
     reviewRecords.value = snapshot.records ?? []
-    daily.value = snapshot.daily.slice(-14).map((item) => [
-      new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${item.date}T00:00:00+08:00`)),
-      item.value,
-    ])
+    daily.value = lastSevenDays(Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value])))
     lastRefresh.value = new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date(snapshot.lastRefresh))
@@ -489,7 +494,7 @@ onBeforeUnmount(() => {
         </section>
         <section class="chart-grid">
           <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? 'Verified output by date' : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ period }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : 'Last 7 days' }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
         </section>
         <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td><span class="table-percent">{{ item.target ? `${Math.round(item.accomplished / item.target * 100)}%` : '—' }}</span></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
         <section class="card review-table" aria-labelledby="review-title">
