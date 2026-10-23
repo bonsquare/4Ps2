@@ -579,9 +579,9 @@ function makeCharts() {
       },
       yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [
-        { name: 'Target', type: 'bar', barGap: '12%', barMaxWidth: 34, data: provinces.map((p) => ({ value: p.target, itemStyle: { color: mix(colorOf(p.id), '#ffffff', 0.4), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#93a8d8', borderRadius: [6, 6, 0, 0] },
+        { name: 'Target', type: 'bar', barGap: '6%', barCategoryGap: '8%', barMaxWidth: 64, data: provinces.map((p) => ({ value: p.target, itemStyle: { color: mix(colorOf(p.id), '#ffffff', 0.4), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#93a8d8', borderRadius: [6, 6, 0, 0] },
           label: { show: true, position: 'top', color: '#5b6f84', fontWeight: 700, formatter: (item: { value: unknown }) => number.format(Number(item.value)) } },
-        { name: 'Actual', type: 'bar', barMaxWidth: 34, data: provinces.map((p) => ({ value: p.accomplished, itemStyle: { color: mix(colorOf(p.id), '#000000', 0.22), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#0f7a58', borderRadius: [6, 6, 0, 0] },
+        { name: 'Actual', type: 'bar', barMaxWidth: 64, data: provinces.map((p) => ({ value: p.accomplished, itemStyle: { color: mix(colorOf(p.id), '#000000', 0.22), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#0f7a58', borderRadius: [6, 6, 0, 0] },
           label: { show: true, position: 'top', color: '#0f5f49', fontWeight: 800, formatter: (item: { value: unknown; dataIndex: number }) => number.format(Number(item.value)) + '\n' + completionOf(provinces[item.dataIndex]) + '%' } },
       ],
     })
