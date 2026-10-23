@@ -117,6 +117,7 @@ const appAccess = computed(() => accessState(profile.value))
 const superAdmin = computed(() => isSuperAdmin(profile.value))
 const authBusy = ref(true)
 const authError = ref('')
+const authMode = ref<'signin' | 'register'>('signin')
 const captchaToken = ref('')
 const captchaMessage = ref('Loading security check…')
 const turnstileMount = ref<HTMLElement | null>(null)
@@ -706,13 +707,15 @@ onBeforeUnmount(() => {
         <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
         <p class="eyebrow">Department of Social Welfare and Development</p>
         <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
-        <p class="login-copy">Pantawid Pamilyang Pilipino Program · Regional Program Management Office, Davao Region. Sign in to view the regional and provincial accomplishment dashboards.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Sign in or register"><button type="button" role="tab" :aria-selected="authMode === 'signin'" :class="{ active: authMode === 'signin' }" @click="authMode = 'signin'">Sign in</button><button type="button" role="tab" :aria-selected="authMode === 'register'" :class="{ active: authMode === 'register' }" @click="authMode = 'register'">Register</button></div>
+        <p v-if="authMode === 'signin'" class="login-copy">Sign in to view the regional and provincial accomplishment dashboards.</p>
+        <p v-else class="login-copy">New here? Verify, continue with Google, then enter your name and position and choose your province or the Regional Program Management Office. The Super Administrator approves your request.</p>
         <span class="live-chip secure"><i></i>Private dashboard · approved accounts only</span>
         <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
         <ol class="sign-steps">
           <li :class="{ done: captchaToken }"><span class="step-num">1</span><div class="step-body"><strong>Security check</strong>
             <div class="captcha-block"><div ref="turnstileMount" aria-label="Security verification"></div><p class="security-note">{{ captchaMessage }}</p></div></div></li>
-          <li :class="{ ready: captchaToken }"><span class="step-num">2</span><div class="step-body"><strong>Continue with Google</strong>
+          <li :class="{ ready: captchaToken }"><span class="step-num">2</span><div class="step-body"><strong>{{ authMode === 'signin' ? 'Continue with Google' : 'Register with Google' }}</strong>
             <div v-show="captchaToken && !authBusy" ref="googleButtonMount" class="google-button-mount" aria-label="Continue with Google"></div>
             <p v-if="!captchaToken" class="security-note">Unlocks once the security check is complete.</p></div></li>
         </ol>
@@ -744,7 +747,7 @@ onBeforeUnmount(() => {
         <form class="profile-form" @submit.prevent="submitProfile">
           <label>Full name<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><input v-model="profileForm.fullName" required autocomplete="name" placeholder="e.g. Maria Santos" /></span></label>
           <label>Position<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg><input v-model="profileForm.position" required autocomplete="organization-title" placeholder="e.g. Provincial Link" /></span></label>
-          <label>Province<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select v-model="profileForm.province" required><option disabled value="">Select your province</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></span></label>
+          <label>Province or office<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select v-model="profileForm.province" required><option disabled value="">Select your province or office</option><option value="Regional Program Management Office">Regional Program Management Office</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></span></label>
           <button class="primary-button" :disabled="profileBusy">{{ profileBusy ? 'Submitting…' : 'Submit for approval' }}</button>
         </form>
         <button class="link-button" @click="logout">Not you? Sign out</button>
