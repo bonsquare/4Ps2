@@ -31,6 +31,15 @@ describe('parseConcerns', () => {
   })
 })
 
+describe('answer link', () => {
+  it('points at the RESPONSE cell of the concern row in the sheet', () => {
+    const [first, , open] = parseConcerns(csv)
+
+    expect(first.answerUrl).toMatch(/\/edit\?gid=1361573843#gid=1361573843&range=D2$/)
+    expect(open.answerUrl).toMatch(/range=D5$/)
+  })
+})
+
 describe('getConcerns', () => {
   it('reads the concerns sheet through the gid CSV export', async () => {
     const urls: string[] = []

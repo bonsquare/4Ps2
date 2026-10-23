@@ -366,6 +366,9 @@ const pagedConcerns = computed(() => paginateRecords(filteredConcerns.value, con
 watch([concernArea, concernProvince, concernStatus, concernQuery], () => { concernPage.value = 1 })
 watch(concernTotalPages, (pages) => { if (concernPage.value > pages) concernPage.value = pages })
 
+// Clicking a concern opens the Google Sheet on its RESPONSE cell, so it can be answered right there.
+const openInSheet = (item: Concern) => window.open(item.answerUrl, '_blank', 'noopener,noreferrer')
+
 async function loadConcerns(force = false) {
   concernsLoading.value = true
   try {
@@ -750,7 +753,7 @@ onBeforeUnmount(() => {
           <ul class="area-list"><li v-for="item in areaBreakdown" :key="item.area" :class="{ active: concernArea === item.area }"><button @click="concernArea = concernArea === item.area ? 'all' : item.area"><span class="area-name">{{ item.area }}</span><span class="area-count">{{ item.total }}</span>
             <span class="stack-bar" role="img" :aria-label="`${item.open} open, ${item.responded} responded, ${item.resolved} resolved`"><i class="s-open" :style="{ flex: item.open }"></i><i class="s-responded" :style="{ flex: item.responded }"></i><i class="s-resolved" :style="{ flex: item.resolved }"></i></span></button></li></ul>
           <p class="legend-row"><span><i class="s-open"></i>Open</span><span><i class="s-responded"></i>Responded</span><span><i class="s-resolved"></i>Resolved</span></p></section>
-        <section class="card concern-list"><header><div><h2>Concerns and responses</h2><p>Live from the community concerns Google Sheet</p></div><strong class="count-chip">{{ number.format(filteredConcerns.length) }} concerns</strong></header>
+        <section class="card concern-list"><header><div><h2>Concerns and responses</h2><p>Click a row to open it in Google Sheets and type the response</p></div><strong class="count-chip">{{ number.format(filteredConcerns.length) }} concerns</strong></header>
           <div class="review-filters concern-filters">
             <label>Area<select v-model="concernArea"><option value="all">All areas</option><option v-for="item in concernAreas" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Province<select v-model="concernProvince"><option value="all">All provinces</option><option v-for="item in concernProvinces" :key="item" :value="item">{{ item }}</option></select></label>
@@ -758,8 +761,8 @@ onBeforeUnmount(() => {
             <label class="review-search">Search<input v-model="concernQuery" type="search" placeholder="Search a concern or response" /></label>
           </div>
           <p v-if="filteredConcerns.length === 0" class="empty-state">No concerns match these filters.</p>
-          <div v-else class="table-scroll"><table class="concern-table"><thead><tr><th>Area of concern</th><th>Province</th><th>Question / issue / concern</th><th>Response</th><th>Status</th></tr></thead><tbody>
-            <tr v-for="item in pagedConcerns" :key="item.id"><td class="area-cell">{{ item.area }}</td><td>{{ item.province || '—' }}</td><td class="text-cell">{{ item.concern }}</td><td class="text-cell">{{ item.response || '—' }}</td><td><span class="concern-status" :class="item.status.toLowerCase()">{{ item.status }}</span></td></tr></tbody></table></div>
+          <div v-else class="table-scroll"><table class="concern-table"><thead><tr><th>Area of concern</th><th>Province</th><th>Question / issue / concern</th><th>Response</th><th>Status</th><th>Answer</th></tr></thead><tbody>
+            <tr v-for="item in pagedConcerns" :key="item.id" class="clickable-row" title="Open this concern in Google Sheets" @click="openInSheet(item)"><td class="area-cell">{{ item.area }}</td><td>{{ item.province || '—' }}</td><td class="text-cell">{{ item.concern }}</td><td class="text-cell">{{ item.response || '—' }}</td><td><span class="concern-status" :class="item.status.toLowerCase()">{{ item.status }}</span></td><td><a class="sheet-link" :class="{ answer: item.status === 'Open' }" :href="item.answerUrl" target="_blank" rel="noopener noreferrer" @click.stop>{{ item.status === 'Open' ? 'Answer in Sheet' : 'Open in Sheet' }} ↗</a></td></tr></tbody></table></div>
           <div v-if="filteredConcerns.length > CONCERN_PAGE_SIZE" class="pagination" aria-label="Concern pages"><button :disabled="concernPage === 1" @click="concernPage -= 1">Previous</button><span>Page {{ concernPage }} of {{ concernTotalPages }}</span><button :disabled="concernPage === concernTotalPages" @click="concernPage += 1">Next</button></div>
         </section>
       </template>

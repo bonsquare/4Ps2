@@ -13,7 +13,11 @@ export type Concern = {
   concern: string
   response: string
   status: ConcernStatus
+  answerUrl: string // opens the sheet on this concern's RESPONSE cell, ready to type the answer
 }
+
+const columnLetter = (index: number) => String.fromCharCode(65 + index)
+const answerUrl = (row: number, responseIndex: number) => `${CONCERNS_SHEET_URL}&range=${columnLetter(responseIndex)}${row}`
 
 function statusOf(response: string, remarks: string): ConcernStatus {
   const text = remarks.toLowerCase()
@@ -46,6 +50,7 @@ export function parseConcerns(csv: string): Concern[] {
     const response = cell(responseIndex)
     concerns.push({
       id: String(offset + 2),
+      answerUrl: answerUrl(offset + 2, responseIndex),
       area: area || 'Uncategorized',
       province: cell(provinceIndex),
       concern,
