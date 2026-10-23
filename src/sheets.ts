@@ -24,6 +24,26 @@ export type PaymentDetails = {
   remarks: string
 }
 
+export type PersonalDetails = {
+  sex: string
+  birthday: string
+  contact: string
+  email: string
+  pwd: string
+  soloParent: string
+  indigenous: string
+  firstGen: string
+}
+
+export type EducationDetails = {
+  member: string
+  hei: string
+  heiType: string
+  degree: string
+  yearLevel: string
+  academicYear: string
+}
+
 export type ReviewRecord = {
   id: string
   province: string
@@ -36,6 +56,8 @@ export type ReviewRecord = {
   date: string | null
   accomplished: boolean
   payment: PaymentDetails
+  personal: PersonalDetails
+  education: EducationDetails
 }
 
 export function countAccomplishments(rows: string[][]) {
@@ -80,6 +102,32 @@ export function paymentDetails(record: ReviewRecord): Array<[string, string]> {
   ]
 }
 
+export function personalDetails(record: ReviewRecord): Array<[string, string]> {
+  const { personal } = record
+  return [
+    ['Sex', personal.sex || '—'],
+    ['Birthday', personal.birthday || '—'],
+    ['Contact number', personal.contact || '—'],
+    ['Email', personal.email || '—'],
+    ['PWD', personal.pwd || '—'],
+    ['Solo parent dependent', personal.soloParent || '—'],
+    ['Indigenous person', personal.indigenous || '—'],
+    ['First-generation college student', personal.firstGen || '—'],
+  ]
+}
+
+export function educationDetails(record: ReviewRecord): Array<[string, string]> {
+  const { education } = record
+  return [
+    ['Household member', education.member || '—'],
+    ['School (HEI)', education.hei || '—'],
+    ['HEI type', education.heiType || '—'],
+    ['Degree program', education.degree || '—'],
+    ['Year level', education.yearLevel || '—'],
+    ['Academic year', education.academicYear || '—'],
+  ]
+}
+
 function normalizeDate(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return null
@@ -114,6 +162,22 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const snapshotIndex = indexOf('snapshot')
   const accountNumber2Index = indexOf('account number2')
   const remarksIndex = indexOf('mrb/prb remarks')
+  const sexIndex = indexOf('sex')
+  const birthdayIndex = indexOf('birthday')
+  const contactIndex = indexOf('contact')
+  const emailIndex = indexOf('email')
+  const pwdIndex = indexOf('pwd')
+  const soloParentIndex = indexOf('solo parent dependent')
+  const indigenousIndex = indexOf('indigenous person')
+  const firstGenIndex = indexOf('first generation college student')
+  const memberFirstIndex = indexOf('member first name')
+  const memberMiddleIndex = indexOf('member middle name')
+  const memberLastIndex = indexOf('member last name')
+  const heiIndex = indexOf('hei name')
+  const heiTypeIndex = indexOf('hei type')
+  const degreeIndex = indexOf('degree program')
+  const yearLevelIndex = indexOf('year level')
+  const academicYearIndex = indexOf('academic year')
 
   return rows.slice(1).flatMap((row) => {
     const id = cell(row, entryIdIndex)
@@ -139,6 +203,24 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
         snapshot: cell(row, snapshotIndex),
         accountNumber2: cell(row, accountNumber2Index),
         remarks: cell(row, remarksIndex),
+      },
+      personal: {
+        sex: cell(row, sexIndex),
+        birthday: cell(row, birthdayIndex),
+        contact: cell(row, contactIndex),
+        email: cell(row, emailIndex),
+        pwd: cell(row, pwdIndex),
+        soloParent: cell(row, soloParentIndex),
+        indigenous: cell(row, indigenousIndex),
+        firstGen: cell(row, firstGenIndex),
+      },
+      education: {
+        member: [cell(row, memberFirstIndex), cell(row, memberMiddleIndex), cell(row, memberLastIndex)].filter(Boolean).join(' '),
+        hei: cell(row, heiIndex),
+        heiType: cell(row, heiTypeIndex),
+        degree: cell(row, degreeIndex),
+        yearLevel: cell(row, yearLevelIndex),
+        academicYear: cell(row, academicYearIndex),
       },
     }]
   })

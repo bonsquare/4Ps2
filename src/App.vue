@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { beneficiaryDetails, filterRecordsByProvince, paginateRecords, paymentDetails, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { beneficiaryDetails, educationDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalDetails, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -318,10 +318,12 @@ function makeCharts() {
 
 function handleResize() { firstChart?.resize(); secondChart?.resize() }
 
-// force bypasses the CDN cache so the Refresh button always pulls live sheet data.
+// force skips the server cache so the Refresh button always pulls live sheet data.
 async function loadGoogleSheets(force = false) {
   try {
-    const response = await fetch(force ? `/sheet-data?t=${Date.now()}` : '/sheet-data')
+    const session = authClient ? (await authClient.auth.getSession()).data.session : null
+    if (!session) return // the data is private; it loads once the user is signed in and approved
+    const response = await fetch(force ? '/sheet-data?fresh=1' : '/sheet-data', { headers: { Authorization: `Bearer ${session.access_token}` } })
     if (!response.ok) throw new Error('Google Sheets returned an error')
     const snapshot = await response.json() as {
       provinces: Province[]
@@ -350,6 +352,7 @@ async function loadGoogleSheets(force = false) {
 
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
 watch([activeView, selectedProvinceId, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
+watch(appAccess, (access) => { if (access === 'approved') loadGoogleSheets() })
 watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
@@ -498,10 +501,21 @@ onBeforeUnmount(() => {
         </section>
         <div v-if="selectedReviewRecord" class="detail-backdrop" role="presentation" @click.self="selectedReviewRecord = null">
           <section class="beneficiary-dialog" role="dialog" aria-modal="true" aria-labelledby="beneficiary-detail-title">
-            <header><div><p class="eyebrow">Beneficiary details</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
-            <dl><template v-for="[label, value] in beneficiaryDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
-            <h3 class="dialog-section">Mode of payment</h3>
-            <dl><template v-for="[label, value] in paymentDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+            <header><div><p class="eyebrow">Beneficiary record</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
+            <div class="detail-columns">
+            <div>
+              <h3 class="dialog-section">Beneficiary details</h3>
+              <dl><template v-for="[label, value] in beneficiaryDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+              <h3 class="dialog-section">Contact and personal information</h3>
+              <dl><template v-for="[label, value] in personalDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+            </div>
+            <div>
+              <h3 class="dialog-section">Mode of payment</h3>
+              <dl><template v-for="[label, value] in paymentDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+              <h3 class="dialog-section">Household member and school</h3>
+              <dl><template v-for="[label, value] in educationDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+            </div>
+            </div>
             <button class="primary-button compact" @click="selectedReviewRecord = null">Close</button>
           </section>
         </div>

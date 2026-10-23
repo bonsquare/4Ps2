@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { beneficiaryDetails, paymentDetails, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { beneficiaryDetails, educationDetails, paymentDetails, personalDetails, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+
+const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
+const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -95,11 +98,13 @@ describe('extractReviewRecords', () => {
         id: 'E-001', province: 'Davao del Sur', name: 'Ana Cruz', municipality: 'Digos', barangay: 'San Jose',
         householdId: 'HH-001', accountNumber: 'AC-001', paymentMode: 'Cash Card', date: '2026-10-05', accomplished: true,
         payment: { servicingBranch: '', dateRequested: null, dateClaimed: '2026-10-05', controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
+        personal: blankPersonal, education: blankEducation,
       },
       {
         id: 'E-002', province: 'Davao del Sur', name: 'Ben Santos', municipality: 'Bansalan', barangay: 'Poblacion',
         householdId: 'HH-002', accountNumber: 'AC-002', paymentMode: '', date: null, accomplished: false,
         payment: { servicingBranch: '', dateRequested: null, dateClaimed: null, controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
+        personal: blankPersonal, education: blankEducation,
       },
     ])
   })
@@ -141,6 +146,7 @@ describe('beneficiaryDetails', () => {
       id: 'E-001', province: 'Davao de Oro', name: 'Jonny Lausa', municipality: 'Maco', barangay: 'Anislagan',
       householdId: '1100000121350', accountNumber: '', paymentMode: '', date: null, accomplished: false,
       payment: { servicingBranch: '', dateRequested: null, dateClaimed: null, controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
+      personal: blankPersonal, education: blankEducation,
     }
 
     expect(beneficiaryDetails(record)).toEqual([
@@ -161,6 +167,25 @@ describe('beneficiaryDetails', () => {
       ['Servicing branch', 'LBP Digos'], ['Date requested', '2026-10-01'], ['Mode of payment', 'GCash'],
       ['Date claimed / account opened', '2026-10-05'], ['Control no.', 'CN-9'], ['Snapshot', 'Snap A'],
       ['Account number 2', 'AC-22'], ['MRB/PRB remarks', '—'],
+    ])
+  })
+})
+
+describe('personal and education details', () => {
+  it('reads contact, personal and school fields from the record and dashes blanks', () => {
+    const csv = [
+      'PROVINCE,Entry_id,MEMBER Last name,MEMBER First name,MEMBER Middle name,Sex,Birthday,Contact,Email,PWD,Solo Parent Dependent,Indigenous Person,First Generation College Student,HEI Name,HEI Type,Degree Program,Year level,Academic Year',
+      'DAVAO DEL SUR,E-001,Cruz,Ana,Lim,F,2005-03-04,09171234567,ana@example.com,No,,Yes,No,UP Mindanao,SUC,BS Biology,2nd,2026-2027',
+    ].join('\n')
+    const [record] = extractReviewRecords(csv, 'Davao del Sur')
+
+    expect(personalDetails(record)).toEqual([
+      ['Sex', 'F'], ['Birthday', '2005-03-04'], ['Contact number', '09171234567'], ['Email', 'ana@example.com'],
+      ['PWD', 'No'], ['Solo parent dependent', '—'], ['Indigenous person', 'Yes'], ['First-generation college student', 'No'],
+    ])
+    expect(educationDetails(record)).toEqual([
+      ['Household member', 'Ana Lim Cruz'], ['School (HEI)', 'UP Mindanao'], ['HEI type', 'SUC'],
+      ['Degree program', 'BS Biology'], ['Year level', '2nd'], ['Academic year', '2026-2027'],
     ])
   })
 })

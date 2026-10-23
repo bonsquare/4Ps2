@@ -122,3 +122,12 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(18, 128, 95, .25); }
 
 .dialog-section { margin: 22px 0 -6px; padding-top: 6px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--green); }
+
+/* Beneficiary dialog: bold name, two columns */
+.beneficiary-dialog { width: min(100%, 980px); }
+.beneficiary-dialog h2 { font-weight: 800; letter-spacing: -.02em; }
+.detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 40px; align-items: start; }
+.detail-columns .dialog-section { margin-top: 22px; margin-bottom: -6px; }
+.detail-columns > div > .dialog-section:first-child { margin-top: 18px; }
+.detail-columns dl { margin: 12px 0 0; grid-template-columns: minmax(130px, .9fr) 1.3fr; }
+@media (max-width: 760px) { .detail-columns { grid-template-columns: 1fr; } }
