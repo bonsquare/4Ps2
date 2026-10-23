@@ -7,6 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { beneficiaryList, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
@@ -329,6 +330,42 @@ async function signInWithGoogleCredential(response: { credential: string }) {
     authBusy.value = false
   }
 }
+
+// ---- Report Center: target vs. actual and payment-mode reports for the region, a province or a municipality ----
+const reportType = ref<'target' | 'payment'>('target')
+const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
+const reportProvince = ref('')
+const reportMunicipality = ref('')
+const reportNames = ref<'none' | 'validated' | 'all'>('none')
+const paperSize = ref<'A4' | 'Legal'>('A4')
+const orientation = ref<'portrait' | 'landscape'>('portrait')
+watch(role, (value) => { if (value === 'provincial' && reportLevel.value === 'regional') reportLevel.value = 'provincial' }, { immediate: true })
+const reportProvinceName = computed(() => role.value === 'provincial' ? selectedProvince.value?.name : (reportProvince.value || provinces[0]?.name))
+const reportMunicipalities = computed(() => [...new Set(filterRecordsByProvince(reviewRecords.value, reportProvinceName.value).map((record) => record.municipality).filter(Boolean))].sort())
+const reportMunicipalityName = computed(() => reportMunicipality.value && reportMunicipalities.value.includes(reportMunicipality.value) ? reportMunicipality.value : reportMunicipalities.value[0])
+const reportScope = computed<ReportScope>(() => {
+  if (reportLevel.value === 'regional') return {}
+  if (reportLevel.value === 'provincial') return { province: reportProvinceName.value }
+  return { province: reportProvinceName.value, municipality: reportMunicipalityName.value }
+})
+const report = computed(() => buildReport(reviewRecords.value, reportScope.value))
+const reportList = computed(() => reportNames.value === 'none' ? [] : beneficiaryList(reviewRecords.value, reportScope.value, reportNames.value))
+const reportHeading = computed(() => `${report.value.level.toUpperCase()} ${reportType.value === 'target' ? 'TARGET VS. ACTUAL ACCOMPLISHMENT REPORT' : 'PAYMENT MODE BREAKDOWN REPORT'}`)
+const reportScopeText = computed(() => reportLevel.value === 'regional'
+  ? 'Davao Region · All provinces'
+  : reportLevel.value === 'provincial'
+    ? `Province of ${reportProvinceName.value}`
+    : `Municipality of ${reportMunicipalityName.value}, ${reportProvinceName.value}`)
+const dayLabel = (iso?: string) => iso ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${iso}T00:00:00+08:00`)) : '—'
+const reportStamp = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(now.value))
+watch(reportProvince, () => { reportMunicipality.value = '' })
+// Paper size and orientation drive the browser's print page; a style tag keeps @page in step with the choices.
+function applyPageStyle() {
+  let tag = document.getElementById('report-page-style')
+  if (!tag) { tag = document.createElement('style'); tag.id = 'report-page-style'; document.head.appendChild(tag) }
+  tag.textContent = `@page { size: ${paperSize.value} ${orientation.value}; margin: 14mm; }`
+}
+watch([paperSize, orientation], applyPageStyle, { immediate: true })
 
 // ---- Community concerns (second Google Sheet) ----
 const concerns = ref<Concern[]>([])
@@ -725,16 +762,48 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else-if="activeView === 'reports'">
-        <section class="page-heading"><div><p class="breadcrumb">Reports & printing</p><h1>Report Center</h1><p>Configure and preview an official accomplishment report.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
+        <section class="page-heading"><div><p class="breadcrumb">Reports & printing</p><h1>Report Center</h1><p>Build a target vs. actual or payment-mode report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
         <section class="report-layout">
-          <aside class="report-controls card"><h2>Report settings</h2><label>Report type<select><option>Accomplishment Summary</option><option>Target vs. Actual</option><option>Daily Accomplishment</option></select></label><label v-if="role === 'regional'">Reporting scope<select><option>Regional – All provinces</option><option v-for="item in provinces" :key="item.id">{{ item.name }}</option></select></label><label>Paper size<select><option>A4</option><option>Legal</option></select></label><label>Orientation<select><option>Portrait</option><option>Landscape</option></select></label><div class="sample-notice"><strong>Preview mode</strong><span>Uses sample data in Phase 1.</span></div></aside>
-          <article class="report-paper">
-            <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>Davao Region</span></div></header>
-            <div class="report-title"><h2>{{ role === 'regional' ? 'REGIONAL ACCOMPLISHMENT SUMMARY' : 'PROVINCIAL ACCOMPLISHMENT SUMMARY' }}</h2><p>Reporting Period: October 16–22, 2026</p></div>
-            <table><thead><tr><th>Province</th><th>Target</th><th>Actual</th><th>Remaining</th><th>%</th></tr></thead><tbody><tr v-for="item in (role === 'regional' ? provinces : [selectedProvince])" :key="item.id"><td>{{ item.name }}</td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target-item.accomplished) : '—' }}</td><td>{{ item.target ? `${Math.round(item.accomplished/item.target*100)}%` : '—' }}</td></tr></tbody></table>
-            <div class="report-total"><span>Total accomplished</span><strong>{{ number.format(displayMetrics.accomplished) }}</strong><span>Completion</span><strong>{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong></div>
+          <aside class="report-controls card"><h2>Report settings</h2>
+            <label>Report<select v-model="reportType"><option value="target">Target vs. actual accomplishment</option><option value="payment">Payment mode breakdown</option></select></label>
+            <label>Level<select v-model="reportLevel"><option v-if="role === 'regional'" value="regional">Regional · by province</option><option value="provincial">Provincial · by municipality</option><option value="municipal">Municipal · by barangay</option></select></label>
+            <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
+            <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
+            <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
+            <label>Paper size<select v-model="paperSize"><option>A4</option><option>Legal</option></select></label>
+            <label>Orientation<select v-model="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+            <p v-if="reportNames !== 'none'" class="report-hint">{{ number.format(reportList.length) }} names will be printed under the summary.</p>
+            <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
+          </aside>
+          <article class="report-paper" :class="orientation">
+            <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>4Ps Enhanced Support Services Intervention · Davao Region</span></div></header>
+            <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }} · As of {{ reportStamp }}</p></div>
+
+            <template v-if="reportType === 'target'">
+              <div class="report-kpis"><div><span>Target beneficiaries</span><strong>{{ number.format(report.total.target) }}</strong></div><div><span>Actual (validated)</span><strong>{{ number.format(report.total.actual) }}</strong></div><div><span>Remaining</span><strong>{{ number.format(report.total.remaining) }}</strong></div><div><span>Completion</span><strong>{{ report.total.percent }}%</strong></div></div>
+              <table class="report-table"><thead><tr><th>{{ report.childLabel }}</th><th>Target</th><th>Actual</th><th>Remaining</th><th>Completion</th></tr></thead>
+                <tbody><tr v-for="row in report.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ number.format(row.target) }}</td><td>{{ number.format(row.actual) }}</td><td>{{ number.format(row.remaining) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${row.percent}%` }"></i></span>{{ row.percent }}%</td></tr></tbody>
+                <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th><th>{{ report.total.percent }}%</th></tr></tfoot></table>
+            </template>
+
+            <template v-else>
+              <table class="report-table share-table"><thead><tr><th>Payment mode</th><th>Validated beneficiaries</th><th>Share of validated</th></tr></thead>
+                <tbody><tr v-for="item in report.modeShare" :key="item.mode"><td>{{ item.mode }}</td><td>{{ number.format(item.count) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${item.percent}%` }"></i></span>{{ item.percent }}%</td></tr><tr v-if="report.modeShare.length === 0"><td colspan="3">No beneficiary has been validated yet.</td></tr></tbody>
+                <tfoot><tr><th>TOTAL VALIDATED</th><th>{{ number.format(report.total.actual) }}</th><th>{{ report.total.actual ? '100%' : '—' }}</th></tr></tfoot></table>
+              <h3 class="report-subhead">Breakdown by {{ report.childLabel.toLowerCase() }}</h3>
+              <table class="report-table"><thead><tr><th>{{ report.childLabel }}</th><th>Target</th><th v-for="mode in report.modes" :key="mode">{{ mode }}</th><th>Validated</th><th>For validation</th></tr></thead>
+                <tbody><tr v-for="row in report.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ number.format(row.target) }}</td><td v-for="mode in report.modes" :key="mode">{{ number.format(row.modes[mode] ?? 0) }}</td><td>{{ number.format(row.actual) }}</td><td>{{ number.format(row.remaining) }}</td></tr></tbody>
+                <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th v-for="mode in report.modes" :key="mode">{{ number.format(report.total.modes[mode] ?? 0) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th></tr></tfoot></table>
+            </template>
+
+            <template v-if="reportNames !== 'none'">
+              <h3 class="report-subhead">{{ reportNames === 'validated' ? 'Validated beneficiaries' : 'All beneficiaries' }} ({{ number.format(reportList.length) }})</h3>
+              <table class="report-table names-table"><thead><tr><th>#</th><th>Beneficiary</th><th>Municipality</th><th>Barangay</th><th>Payment mode</th><th>Date validated</th><th>Status</th></tr></thead>
+                <tbody><tr v-for="(person, index) in reportList" :key="`${person.province}-${person.id}`"><td>{{ index + 1 }}</td><td>{{ person.name || 'Name not provided' }}<small v-if="reportLevel === 'regional'">{{ person.province }}</small></td><td>{{ person.municipality || '—' }}</td><td>{{ person.barangay || '—' }}</td><td>{{ person.paymentMode || '—' }}</td><td>{{ dayLabel(person.validatedDate) }}</td><td>{{ statusLabel(person) }}</td></tr></tbody></table>
+            </template>
+
             <div class="signatures"><div><span>Prepared by:</span><i></i><strong>Name and Signature</strong></div><div><span>Reviewed / Approved by:</span><i></i><strong>Name and Signature</strong></div></div>
-            <footer>Generated October 22, 2026 · 10:48 PM (Asia/Manila)<span>Page 1 of 1</span></footer>
+            <footer>Generated {{ reportStamp }} (Asia/Manila)<span>{{ reportHeading }}</span></footer>
           </article>
         </section>
       </template>
