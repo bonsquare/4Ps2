@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { beneficiaryDetails, filterRecordsByProvince, paginateRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { beneficiaryDetails, filterRecordsByProvince, paginateRecords, paymentDetails, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -500,6 +500,8 @@ onBeforeUnmount(() => {
           <section class="beneficiary-dialog" role="dialog" aria-modal="true" aria-labelledby="beneficiary-detail-title">
             <header><div><p class="eyebrow">Beneficiary details</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
             <dl><template v-for="[label, value] in beneficiaryDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+            <h3 class="dialog-section">Mode of payment</h3>
+            <dl><template v-for="[label, value] in paymentDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
             <button class="primary-button compact" @click="selectedReviewRecord = null">Close</button>
           </section>
         </div>

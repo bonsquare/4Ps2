@@ -14,6 +14,16 @@ export const WORKSHEETS = [
 const VALID_MODE = /\b(?:cash\s*card|e[\s-]*wallet)\b/i
 export const REVIEW_PAGE_SIZE = 20
 
+export type PaymentDetails = {
+  servicingBranch: string
+  dateRequested: string | null
+  dateClaimed: string | null
+  controlNo: string
+  snapshot: string
+  accountNumber2: string
+  remarks: string
+}
+
 export type ReviewRecord = {
   id: string
   province: string
@@ -25,6 +35,7 @@ export type ReviewRecord = {
   paymentMode: string
   date: string | null
   accomplished: boolean
+  payment: PaymentDetails
 }
 
 export function countAccomplishments(rows: string[][]) {
@@ -50,9 +61,22 @@ export function beneficiaryDetails(record: ReviewRecord): Array<[string, string]
     ['Barangay', value(record.barangay)],
     ['Household ID', value(record.householdId)],
     ['Account number', value(record.accountNumber)],
-    ['Payment mode', value(record.paymentMode)],
-    ['Date claimed / opened', value(record.date)],
     ['Status', record.accomplished ? 'Validated – For Review' : 'For Validation'],
+  ]
+}
+
+export function paymentDetails(record: ReviewRecord): Array<[string, string]> {
+  const value = (input: string | null) => input || '—'
+  const { payment } = record
+  return [
+    ['Servicing branch', value(payment.servicingBranch)],
+    ['Date requested', value(payment.dateRequested)],
+    ['Mode of payment', value(record.paymentMode)],
+    ['Date claimed / account opened', value(payment.dateClaimed)],
+    ['Control no.', value(payment.controlNo)],
+    ['Snapshot', value(payment.snapshot)],
+    ['Account number 2', value(payment.accountNumber2)],
+    ['MRB/PRB remarks', value(payment.remarks)],
   ]
 }
 
@@ -85,6 +109,11 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const claimedDateIndex = headers.findIndex((header) => header.includes('date claimed') || header.includes('account opened'))
   const requestedDateIndex = headers.findIndex((header) => header.includes('date requested'))
   const dateIndex = claimedDateIndex >= 0 ? claimedDateIndex : requestedDateIndex
+  const servicingBranchIndex = indexOf('servicing branch')
+  const controlNoIndex = indexOf('control no.')
+  const snapshotIndex = indexOf('snapshot')
+  const accountNumber2Index = indexOf('account number2')
+  const remarksIndex = indexOf('mrb/prb remarks')
 
   return rows.slice(1).flatMap((row) => {
     const id = cell(row, entryIdIndex)
@@ -102,6 +131,15 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
       paymentMode,
       date: normalizeDate(cell(row, dateIndex)),
       accomplished: paymentMode !== '',
+      payment: {
+        servicingBranch: cell(row, servicingBranchIndex),
+        dateRequested: normalizeDate(cell(row, requestedDateIndex)),
+        dateClaimed: normalizeDate(cell(row, claimedDateIndex)),
+        controlNo: cell(row, controlNoIndex),
+        snapshot: cell(row, snapshotIndex),
+        accountNumber2: cell(row, accountNumber2Index),
+        remarks: cell(row, remarksIndex),
+      },
     }]
   })
 }

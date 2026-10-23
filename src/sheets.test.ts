@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beneficiaryDetails, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { beneficiaryDetails, paymentDetails, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 describe('countAccomplishments', () => {
   it('counts a row once when it contains Cash Card or E-Wallet', () => {
@@ -94,10 +94,12 @@ describe('extractReviewRecords', () => {
       {
         id: 'E-001', province: 'Davao del Sur', name: 'Ana Cruz', municipality: 'Digos', barangay: 'San Jose',
         householdId: 'HH-001', accountNumber: 'AC-001', paymentMode: 'Cash Card', date: '2026-10-05', accomplished: true,
+        payment: { servicingBranch: '', dateRequested: null, dateClaimed: '2026-10-05', controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
       },
       {
         id: 'E-002', province: 'Davao del Sur', name: 'Ben Santos', municipality: 'Bansalan', barangay: 'Poblacion',
         householdId: 'HH-002', accountNumber: 'AC-002', paymentMode: '', date: null, accomplished: false,
+        payment: { servicingBranch: '', dateRequested: null, dateClaimed: null, controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
       },
     ])
   })
@@ -138,12 +140,27 @@ describe('beneficiaryDetails', () => {
     const record = {
       id: 'E-001', province: 'Davao de Oro', name: 'Jonny Lausa', municipality: 'Maco', barangay: 'Anislagan',
       householdId: '1100000121350', accountNumber: '', paymentMode: '', date: null, accomplished: false,
+      payment: { servicingBranch: '', dateRequested: null, dateClaimed: null, controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
     }
 
     expect(beneficiaryDetails(record)).toEqual([
       ['Entry ID', 'E-001'], ['Province', 'Davao de Oro'], ['Municipality', 'Maco'], ['Barangay', 'Anislagan'],
-      ['Household ID', '1100000121350'], ['Account number', '—'], ['Payment mode', '—'], ['Date claimed / opened', '—'],
+      ['Household ID', '1100000121350'], ['Account number', '—'],
       ['Status', 'For Validation'],
+    ])
+  })
+
+  it('shows the payment section fields read from the sheet, with dashes for blanks', () => {
+    const csv = [
+      'PROVINCE,Entry_id,SERVICING BRANCH,Date Requested (LBP servicing Branch),ACCOUNT DESCRIPTION/Mode of Payment,Date Claimed/ Account Opened,Control No.,SNAPSHOT,Account Number2,MRB/PRB REMARKS',
+      'DAVAO DEL SUR,E-001,LBP Digos,10/01/2026,GCash,10/05/2026,CN-9,Snap A,AC-22,',
+    ].join('\n')
+    const [record] = extractReviewRecords(csv, 'Davao del Sur')
+
+    expect(paymentDetails(record)).toEqual([
+      ['Servicing branch', 'LBP Digos'], ['Date requested', '2026-10-01'], ['Mode of payment', 'GCash'],
+      ['Date claimed / account opened', '2026-10-05'], ['Control no.', 'CN-9'], ['Snapshot', 'Snap A'],
+      ['Account number 2', 'AC-22'], ['MRB/PRB remarks', '—'],
     ])
   })
 })
