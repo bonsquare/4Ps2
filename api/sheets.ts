@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { applyFirstSeen, entryKey, getAccomplishmentSnapshot, undatedAccomplished } from '../src/sheets.js'
+import { accomplishedRecords, applyFirstSeen, entryKey, getAccomplishmentSnapshot } from '../src/sheets.js'
 
 type Snapshot = Awaited<ReturnType<typeof getAccomplishmentSnapshot>>
 type ServerRequest = { url?: string; headers: Record<string, string | string[] | undefined> }
@@ -24,11 +24,11 @@ async function approvedClient(authorization: string | string[] | undefined) {
   return data?.status === 'approved' ? client : null
 }
 
-// Records the first day each undated accomplished row was seen, then counts it on that day.
+// Records the first day each accomplished row was seen (its validation date), and counts undated rows on that day.
 // If the log table is missing or unreadable, those rows simply count as today.
 async function withFirstSeen(snapshot: Snapshot, client: SupabaseClient) {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())
-  const keys = undatedAccomplished(snapshot).map(entryKey)
+  const keys = accomplishedRecords(snapshot).map(entryKey)
   const firstSeen: Record<string, string> = {}
   if (keys.length) {
     const rows = keys.map((key) => ({ entry_key: key, province: key.split('|')[0] }))

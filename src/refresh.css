@@ -167,3 +167,11 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .notify-dot { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; display: grid; place-items: center; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11.5px; font-weight: 800; box-shadow: 0 0 0 3px rgba(229, 72, 77, .3); animation: notify 2s ease-in-out infinite; }
 @keyframes notify { 50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); } }
 @media (prefers-reduced-motion: reduce) { .notify-dot { animation: none; } }
+
+/* Beneficiary review table: short columns stay on one line; Location and Remarks wrap so the table fits */
+.review-table table { min-width: 0; table-layout: auto; }
+.review-table th, .review-table td { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+.review-table td:nth-child(2) { white-space: normal; min-width: 150px; }
+.review-table .location-cell { white-space: normal; min-width: 150px; }
+.review-table .remarks-cell { white-space: normal; min-width: 130px; max-width: 220px; }
+.nowrap-cell { white-space: nowrap; }

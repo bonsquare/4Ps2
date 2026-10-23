@@ -59,6 +59,7 @@ export type ReviewRecord = {
   personal: PersonalDetails
   education: EducationDetails
   countedDate?: string // the day an accomplished row is counted on (its sheet date, else first seen)
+  validatedDate?: string // the day the validation (payment mode) was first detected by the system
 }
 
 export function countAccomplishments(rows: string[][]) {
@@ -120,6 +121,7 @@ export function paymentDetails(record: ReviewRecord): Array<[string, string]> {
     ['Servicing branch', dash(payment.servicingBranch)],
     ['Date requested', dash(payment.dateRequested)],
     ['Date claimed / account opened', dash(payment.dateClaimed)],
+    ['Date validated', dash(record.validatedDate ?? null)],
     ['Control no.', dash(payment.controlNo)],
     ['Account number', dash(record.accountNumber)],
     ['Account number 2', dash(payment.accountNumber2)],
@@ -296,6 +298,7 @@ type Snapshot = Awaited<ReturnType<typeof getAccomplishmentSnapshot>>
 
 export const entryKey = (record: { province: string; id: string }) => `${record.province}|${record.id}`
 export const undatedAccomplished = (snapshot: Snapshot) => snapshot.records.filter((record) => record.accomplished && !record.date)
+export const accomplishedRecords = (snapshot: Snapshot) => snapshot.records.filter((record) => record.accomplished)
 
 // Accomplished rows with no date in the sheet are counted on the day they were first seen (firstSeen),
 // or on `today` when that is not recorded yet, so the daily graph always adds up to the accomplished total.
@@ -310,9 +313,11 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
     daily[date] = (daily[date] ?? 0) + 1
     if (date === today) province.today += 1
   }
-  const records = snapshot.records.map((record) => (
-    record.accomplished ? { ...record, countedDate: record.date ?? firstSeen[entryKey(record)] ?? today } : record
-  ))
+  const records = snapshot.records.map((record) => {
+    if (!record.accomplished) return record
+    const validatedDate = firstSeen[entryKey(record)] ?? today
+    return { ...record, validatedDate, countedDate: record.date ?? validatedDate }
+  })
   return {
     ...snapshot,
     records,

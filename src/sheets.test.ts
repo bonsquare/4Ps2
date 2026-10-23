@@ -161,7 +161,7 @@ describe('beneficiary detail sections', () => {
     ])
     expect(paymentDetails(record)).toEqual([
       ['Mode of payment', 'GCash'], ['Servicing branch', 'LBP Digos'], ['Date requested', '2026-10-01'],
-      ['Date claimed / account opened', '2026-10-05'], ['Control no.', 'CN-9'], ['Account number', 'AC-1'],
+      ['Date claimed / account opened', '2026-10-05'], ['Date validated', '—'], ['Control no.', 'CN-9'], ['Account number', 'AC-1'],
       ['Account number 2', 'AC-22'], ['Snapshot', 'https://drive.example/x'],
     ])
     expect(remarksDetails(record)).toEqual([['MRB/PRB remarks', 'Verified']])
@@ -202,6 +202,7 @@ describe('applyFirstSeen', () => {
     const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
 
     expect(result.records.map((record) => record.countedDate)).toEqual(['2026-10-18', '2026-10-21', '2026-10-23', undefined])
+    expect(result.records.map((record) => record.validatedDate)).toEqual(['2026-10-23', '2026-10-21', '2026-10-23', undefined])
     expect(summarizeRecords(result.records, '2026-10-23')).toEqual({
       target: 4, accomplished: 3, today: 1, daily: { '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 },
     })
