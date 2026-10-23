@@ -19,6 +19,8 @@ Live site: https://4-ps2.vercel.app · Repo: https://github.com/bonsquare/4Ps2 (
 
 ## Screens
 
+All screens work on phones (verified on Android). On screens up to 760px wide the top bar is compact (logo, short title, clock, a "Live" dot, avatar), the metric cards sit two per row with an odd last card spanning the row, and the sidebar becomes a slide-in menu. Phone styles live in `src/mobile.css`.
+
 1. **Login / Register** — picture panel on the left, sign-in card on the right with a **Sign in | Register** switch. Register uses the same Turnstile + Google flow, then the profile form. The left panel is one crisp picture (4Ps social worker in a red vest with a mother and child) with no blur, fade or color overlay. Three lines sit on its sky: "Pantawid Pamilyang Pilipino Program" (largest), "Enhanced Support Services Intervention", and "Regional Program Management Office Monitoring" (outlined badge).
 2. **Regional Overview** — Regional Target, Accomplished to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments) and Regional Daily Output charts.
 3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, beneficiary review list with filters, record detail dialog.
@@ -33,7 +35,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 
 ### Definitions
 - **Target** = number of rows with a valid `Entry_id` in a province worksheet.
-- **Accomplished / validated** = row has a non-empty value in the **Mode of Payment** column (S).
+- **Accomplished / validated** = row has a non-empty value in the **Mode of Payment** column (S). Confirmed by the program office: every mode counts (GCash, PayMaya, PISO Plus, Visa and any other).
 - **Remaining** = max(target − accomplished, 0). **Completion rate** = accomplished ÷ target, one decimal.
 - **Validation date** = the day the system **first saw** the row as accomplished (stored in `accomplishment_log.first_seen`, Asia/Manila date). The sheet has no validation date.
 - **Column T** ("Date Claimed/Account Opened (LBP servicing Branch)") is the date the bank account was opened, **not** a validation date. It must not drive daily counts, Completed Today or the validation date. It is only shown in record details as "Date claimed / account opened".
@@ -69,6 +71,4 @@ Copy `.env.example` to `.env` for local work. Also add the local and deployed UR
 - Editing sheet data from the app, province-restricted access, and multi-language UI are not implemented.
 
 ## Known gaps
-- `README.md` says only Cash Card or E-Wallet count as accomplished, but the record-level rule counts **any** non-empty payment mode (e.g. "PISO Plus"). A separate helper (`src/sheets.ts:66`) counts with the stricter `VALID_MODE` pattern. Confirm the intended rule with the program office.
 - `npm run dev` does not read the Supabase log, so every accomplished row shows today as its validation date locally.
-- One Davao del Sur row has an account number in Column T instead of a date.

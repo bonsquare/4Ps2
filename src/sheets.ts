@@ -11,7 +11,6 @@ export const WORKSHEETS = [
   { id: 'occidental', name: 'Davao Occidental', tab: 'DAVAO OCCIDENTAL', gid: '1373907878' },
 ] as const
 
-const VALID_MODE = /\b(?:cash\s*card|e[\s-]*wallet)\b/i
 export const REVIEW_PAGE_SIZE = 20
 
 export type PaymentDetails = {
@@ -60,10 +59,6 @@ export type ReviewRecord = {
   education: EducationDetails
   countedDate?: string // the day an accomplished row is counted on (its sheet date, else first seen)
   validatedDate?: string // the day the validation (payment mode) was first detected by the system
-}
-
-export function countAccomplishments(rows: string[][]) {
-  return rows.filter((row) => row.some((cell) => VALID_MODE.test(String(cell).trim()))).length
 }
 
 export function paginateRecords<T>(records: T[], requestedPage: number, pageSize = REVIEW_PAGE_SIZE) {

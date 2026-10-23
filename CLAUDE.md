@@ -7,7 +7,7 @@ Vue 3 + TypeScript + Vite dashboard for the DSWD 4Ps ESSI program (Davao Region)
 ```bash
 npm install
 npm run dev     # Vite on http://localhost:5173 (skips Google sign-in on localhost)
-npm test        # vitest run (42 tests)
+npm test        # vitest run (41 tests)
 npm run build   # vue-tsc -b && vite build
 npx vue-tsc -b  # type-check only
 ```
@@ -21,7 +21,7 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 - `src/reports.ts`, `src/domain.ts`, `src/access.ts`, `src/auth.ts`, `src/concerns.ts` — report building, aggregation, approval states, Supabase/Google/Turnstile setup, concerns sheet.
 - `api/sheets.ts`, `api/concerns.ts`, `src/serverAuth.ts` — Vercel functions (approved users only). `vercel.json` rewrites `/sheet-data` and `/concerns-data`.
 - `supabase/migrations/` — `user_profiles`, `accomplishment_log` (apply in the Supabase SQL editor).
-- Styles: `style.css` (base) → `refresh.css` → `auth-pages.css` (login, registration, status screens) → `reports.css`, `concerns.css`. Later files override earlier ones.
+- Styles: `style.css` (base) → `refresh.css` → `auth-pages.css` (login, registration, status screens) → `reports.css`, `concerns.css` → `mobile.css` (phone layout, up to 760px wide). Later files override earlier ones, so phone fixes go in `mobile.css`; `refresh.css` re-styles the topbar, cards and heading and would otherwise undo rules added in `style.css`.
 - `public/` — `logo.png`, `login-bg.webp` (login picture).
 
 ## Rules that are easy to get wrong

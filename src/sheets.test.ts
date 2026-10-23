@@ -1,29 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
 const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
 
-describe('countAccomplishments', () => {
-  it('counts a row once when it contains Cash Card or E-Wallet', () => {
-    const rows = [
-      ['XI', 'Davao del Sur', 'Cash Card', '2026-10-20'],
-      ['XI', 'Davao del Sur', 'E-Wallet', '2026-10-21'],
-      ['XI', 'Davao del Sur', 'Cash Card / E-Wallet', '2026-10-22'],
-      ['XI', 'Davao del Sur', '', '2026-10-22'],
-    ]
+describe('payment modes', () => {
+  it('counts every payment mode as accomplished (GCash, PayMaya, PISO Plus, Visa) and skips blanks', () => {
+    const csv = [
+      'Entry_id,ACCOUNT DESCRIPTION/Mode of Payment',
+      'E-1,GCash', 'E-2,PayMaya', 'E-3,PISO Plus', 'E-4,Visa', 'E-5,',
+    ].join('\n')
 
-    expect(countAccomplishments(rows)).toBe(3)
-  })
-
-  it('accepts spacing, hyphen, and letter-case variations', () => {
-    expect(countAccomplishments([
-      ['cash card'],
-      [' CASH   CARD '],
-      ['e-wallet'],
-      ['E Wallet'],
-      ['bank transfer'],
-    ])).toBe(4)
+    expect(summarizeWorksheet(csv)).toMatchObject({ target: 5, accomplished: 4 })
   })
 })
 

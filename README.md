@@ -26,4 +26,4 @@ npm test
 npm run build
 ```
 
-The target for each province is the number of valid `Entry_id` rows in its worksheet. A row is counted as accomplished when its payment-mode field contains `Cash Card` or `E-Wallet`.
+The target for each province is the number of valid `Entry_id` rows in its worksheet. A row is counted as accomplished when its payment-mode field is not empty. Every mode counts: GCash, PayMaya, PISO Plus, Visa and any other.
