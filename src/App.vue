@@ -27,15 +27,18 @@ const provinces = reactive<Province[]>([
   { id: 'occidental', name: 'Davao Occidental', target: 760, accomplished: 604, today: 26 },
 ])
 
-// The daily chart always shows the last 7 days (Asia/Manila), with 0 for days that have no accomplishments.
+// The trend charts show the last 7 days (Asia/Manila) as a running total: everything accomplished before the
+// window plus each day's output, so the line only ever rises or stays flat.
 const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
 function lastSevenDays(values: Record<string, number>): Array<[string, number]> {
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = manilaDate(6 - index)
+  const dates = Array.from({ length: 7 }, (_, index) => manilaDate(6 - index))
+  let total = Object.entries(values).filter(([date]) => date < dates[0]).reduce((sum, [, value]) => sum + value, 0)
+  return dates.map((date) => {
+    total += values[date] ?? 0
     const day = new Date(`${date}T00:00:00+08:00`)
     const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }).format(day)
     const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(day)
-    return [`${weekday}\n${monthDay}`, values[date] ?? 0]
+    return [`${weekday}\n${monthDay}`, total]
   })
 }
 const daily = ref<Array<[string, number]>>(lastSevenDays({}))
@@ -509,8 +512,8 @@ onBeforeUnmount(() => {
           <article><span>Today's accomplishment</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? 'Verified output by date' : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : 'Last 7 days' }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? 'Running total of verified output, last 7 days' : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : 'Running total of accomplishments, last 7 days' }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
         </section>
         <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td><span class="table-percent">{{ item.target ? `${Math.round(item.accomplished / item.target * 100)}%` : '—' }}</span></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
         <section class="card review-table" aria-labelledby="review-title">
