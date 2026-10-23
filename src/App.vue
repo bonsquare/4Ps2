@@ -704,9 +704,9 @@ onBeforeUnmount(() => {
     <section class="login-panel" aria-labelledby="login-title">
       <div class="login-card">
         <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
-        <p class="eyebrow">Regional Program Management Office</p>
+        <p class="eyebrow">Department of Social Welfare and Development</p>
         <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
-        <p class="login-copy">Sign in to view the regional and provincial performance dashboards.</p>
+        <p class="login-copy">Pantawid Pamilyang Pilipino Program · Regional Program Management Office, Davao Region. Sign in to view the regional and provincial accomplishment dashboards.</p>
         <span class="live-chip secure"><i></i>Private dashboard · approved accounts only</span>
         <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
         <ol class="sign-steps">
@@ -717,11 +717,12 @@ onBeforeUnmount(() => {
             <p v-if="!captchaToken" class="security-note">Unlocks once the security check is complete.</p></div></li>
         </ol>
         <p class="security-note">Use your Gmail or Google Workspace corporate email.</p>
+        <p class="security-note">Department of Social Welfare and Development · Republic of the Philippines</p>
         <p v-if="!authConfigured || !googleSignInConfigured || !turnstileConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
       </div>
     </section>
     <aside class="login-context" aria-label="System overview">
-      <div class="context-body"><span class="context-kicker">One clear regional view</span><h2>From daily encoding to decisions.</h2><p>Provincial teams keep their existing Google Sheets workflow. Regional leaders get a consolidated, always-current picture.</p></div>
+      <div class="context-body"><span class="context-kicker">Pantawid Pamilyang Pilipino Program</span><h2>Serving every 4Ps family, tracked every day.</h2><p>Provincial teams keep their existing Google Sheets workflow. The Regional Program Management Office gets a consolidated, always-current picture of ESSI beneficiary targets and accomplishments across the Davao Region.</p></div>
       <ul class="feature-list">
         <li class="blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><div><strong>Always current</strong><span>Reads the provincial Google Sheets live, even when a sheet is filtered.</span></div></li>
         <li class="green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><div><strong>Approved people only</strong><span>Province-scoped access, reviewed by the Super Administrator.</span></div></li>
