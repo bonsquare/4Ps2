@@ -50,6 +50,10 @@ const selectedProvinceId = ref('sur')
 const period = ref('This week')
 const menuOpen = ref(false)
 const refreshing = ref(false)
+const now = ref(new Date())
+const clockDate = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(now.value))
+const clockTime = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(now.value))
+let clockTimer: number | undefined
 const lastRefresh = ref('Oct 22, 2026 · 10:48 PM')
 const dataConnected = ref(false)
 const dataError = ref('')
@@ -343,6 +347,7 @@ watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => {
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
+  clockTimer = window.setInterval(() => { now.value = new Date() }, 1000)
   loadGoogleSheets()
   if (auth) {
     try {
@@ -369,6 +374,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   if (refreshTimer) window.clearInterval(refreshTimer)
+  window.clearInterval(clockTimer)
   unsubscribeAuth?.()
   firstChart?.dispose(); secondChart?.dispose()
 })
@@ -434,7 +440,7 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
       <div class="brand"><div class="mini-seal">XI</div><div><strong>Accomplishment Monitor</strong><span>Regional Operations Office</span></div></div>
-      <div class="topbar-actions"><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><button class="avatar" aria-label="Open account menu">{{ role === 'regional' ? 'RA' : 'DS' }}</button></div>
+      <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><button class="avatar" aria-label="Open account menu">{{ role === 'regional' ? 'RA' : 'DS' }}</button></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
       <div class="role-card"><span>Signed in as</span><strong>{{ currentUser?.email ?? 'Google account' }}</strong></div>
