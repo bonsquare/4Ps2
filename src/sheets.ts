@@ -315,9 +315,9 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
   }
   const records = snapshot.records.map((record) => {
     if (!record.accomplished) return record
-    // Date Claimed/Account Opened is the validation date; first-seen only fills in rows without one.
-    const validatedDate = record.date ?? firstSeen[entryKey(record)] ?? today
-    return { ...record, validatedDate, countedDate: validatedDate }
+    // Validation date is when the system first saw the record; the chart still counts by the sheet date.
+    const validatedDate = firstSeen[entryKey(record)] ?? today
+    return { ...record, validatedDate, countedDate: record.date ?? validatedDate }
   })
   return {
     ...snapshot,
