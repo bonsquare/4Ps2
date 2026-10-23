@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
     <section class="login-panel" aria-labelledby="login-title">
       <div class="seal" aria-hidden="true">XI</div>
       <p class="eyebrow">Regional Operations Office</p>
-      <h1 id="login-title">Daily Accomplishment Monitor</h1>
+      <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
       <p class="login-copy">Secure access to regional and provincial performance dashboards.</p>
       <div class="sample-notice"><strong>Phase 1 prototype</strong><span>{{ dataConnected ? 'Live Google Sheets data is connected.' : 'Connecting to Google Sheets…' }}</span></div>
       <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
@@ -440,7 +440,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell">
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
-      <div class="brand"><div class="mini-seal">XI</div><div><strong>Accomplishment Monitor</strong><span>Regional Operations Office</span></div></div>
+      <div class="brand"><div class="mini-seal">XI</div><div><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Operations Office</span></div></div>
       <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><button class="avatar" aria-label="Open account menu">{{ role === 'regional' ? 'RA' : 'DS' }}</button></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">

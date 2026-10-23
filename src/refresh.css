@@ -105,3 +105,8 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .clock strong { font-size: 17px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
 .clock span { font-size: 11px; color: var(--ink-3); letter-spacing: .01em; }
 @media (max-width: 760px) { .clock span { display: none; } .clock strong { font-size: 14px; } .clock { padding-right: 8px; } }
+
+/* Long app name: truncate instead of pushing the clock and status off the topbar */
+.brand { min-width: 0; }
+.brand strong { display: block; max-width: min(34vw, 420px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 760px) { .brand strong { max-width: 44vw; } }
