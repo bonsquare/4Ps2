@@ -12,6 +12,10 @@ import { accessState, isSuperAdmin, type UserProfile } from './access'
 
 use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
+// Local-only shortcut: `npm run dev` on localhost skips Google sign-in. import.meta.env.DEV is false in production
+// builds, so this branch is removed from the deployed bundle.
+const devBypass = import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+
 type Role = 'regional' | 'provincial'
 type View = 'overview' | 'province' | 'reports' | 'approvals'
 
@@ -336,8 +340,8 @@ function handleResize() { firstChart?.resize(); secondChart?.resize() }
 async function loadGoogleSheets(force = false) {
   try {
     const session = authClient ? (await authClient.auth.getSession()).data.session : null
-    if (!session) return // the data is private; it loads once the user is signed in and approved
-    const response = await fetch(force ? '/sheet-data?fresh=1' : '/sheet-data', { headers: { Authorization: `Bearer ${session.access_token}` } })
+    if (!session && !devBypass) return // the data is private; it loads once the user is signed in and approved
+    const response = await fetch(force ? '/sheet-data?fresh=1' : '/sheet-data', { headers: session ? { Authorization: `Bearer ${session.access_token}` } : {} })
     if (!response.ok) {
       const detail = await response.json().then((body: { error?: string }) => body.error, () => undefined)
       throw new Error(detail ?? 'Google Sheets returned an error')
@@ -375,7 +379,10 @@ onMounted(async () => {
   document.addEventListener('keydown', closeAccountMenu)
   clockTimer = window.setInterval(() => { now.value = new Date() }, 1000)
   loadGoogleSheets()
-  if (auth) {
+  if (devBypass) {
+    currentUser.value = { id: 'local-dev', email: 'dev@localhost', user_metadata: { full_name: 'Local Developer' } } as unknown as User
+    profile.value = { id: 'local-dev', email: 'dev@localhost', fullName: 'Local Developer', position: 'Super Administrator', province: 'Regional Office', status: 'approved', isSuperAdmin: true }
+  } else if (auth) {
     try {
       currentUser.value = await auth.getUser()
       await loadProfile()
@@ -392,7 +399,7 @@ onMounted(async () => {
   }
   authBusy.value = false
   await nextTick()
-  if (authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
+  if (!devBypass && authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value) refreshDataInBackground()
   }, 30_000)
