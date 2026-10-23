@@ -314,3 +314,11 @@ img.report-seal { height: 64px; }
 .update-now { background: #fbbf24; color: #3b2a02; }
 .update-later { background: rgba(255, 255, 255, .16); color: #fff; }
 @media print { .update-toast { display: none !important; } }
+
+/* Refresh buttons: icon that turns on hover and spins while loading. */
+.refresh-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.refresh-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .45s var(--ease); }
+.refresh-button:hover:not(:disabled) .refresh-icon { transform: rotate(180deg); }
+.refresh-icon.spinning { animation: refresh-spin .9s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .refresh-icon { transition: none; } .refresh-icon.spinning { animation: none; } }
