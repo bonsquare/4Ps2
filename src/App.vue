@@ -47,8 +47,24 @@ const profile = ref<UserProfile | null>(null)
 const profileBusy = ref(false)
 const profileError = ref('')
 const profileForm = reactive({ fullName: '', position: '', province: '' })
-const pendingProfiles = ref<UserProfile[]>([])
+const managedProfiles = ref<UserProfile[]>([])
 const approvalsBusy = ref(false)
+const profileFilter = ref<'all' | UserProfile['status']>('all')
+const statusOrder = { pending: 0, approved: 1, denied: 2 }
+const profileCounts = computed(() => ({
+  all: managedProfiles.value.length,
+  pending: managedProfiles.value.filter((item) => item.status === 'pending').length,
+  approved: managedProfiles.value.filter((item) => item.status === 'approved').length,
+  denied: managedProfiles.value.filter((item) => item.status === 'denied').length,
+}))
+// Pending requests first, then everyone else by name.
+const visibleProfiles = computed(() => managedProfiles.value
+  .filter((item) => profileFilter.value === 'all' || item.status === profileFilter.value)
+  .sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.fullName.localeCompare(b.fullName)))
+const canManage = (item: UserProfile) => item.id !== currentUser.value?.id && !item.isSuperAdmin
+function removeAccess(item: UserProfile) {
+  if (window.confirm(`Remove ${item.fullName}'s access to the dashboard?`)) decideProfile(item, 'denied')
+}
 const appAccess = computed(() => accessState(profile.value))
 const superAdmin = computed(() => isSuperAdmin(profile.value))
 const authBusy = ref(true)
@@ -227,15 +243,14 @@ async function submitProfile() {
   profileBusy.value = false
 }
 
-async function loadPendingProfiles() {
+async function loadProfiles() {
   if (!superAdmin.value || !authClient) return
   approvalsBusy.value = true
   const { data, error } = await authClient.from('user_profiles')
     .select('id, email, full_name, position, province, status, is_super_admin')
-    .eq('status', 'pending')
     .order('requested_at', { ascending: true })
-  if (error) profileError.value = 'Unable to load approval requests.'
-  else pendingProfiles.value = (data ?? []).map(toProfile)
+  if (error) profileError.value = 'Unable to load users.'
+  else managedProfiles.value = (data ?? []).map(toProfile)
   approvalsBusy.value = false
 }
 
@@ -246,7 +261,7 @@ async function decideProfile(request: UserProfile, status: 'approved' | 'denied'
     .update({ status, decided_at: new Date().toISOString(), decided_by: currentUser.value.id })
     .eq('id', request.id)
   if (error) profileError.value = 'Unable to save this decision. Please try again.'
-  else await loadPendingProfiles()
+  else await loadProfiles()
   approvalsBusy.value = false
 }
 
@@ -270,7 +285,7 @@ async function signInWithGoogleCredential(response: { credential: string }) {
 function navigate(view: View) {
   activeView.value = view
   menuOpen.value = false
-  if (view === 'approvals') loadPendingProfiles()
+  if (view === 'approvals') loadProfiles()
 }
 
 async function refreshData() {
@@ -506,7 +521,7 @@ onBeforeUnmount(() => {
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
-        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>✓</i>Approvals</button>
+        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management</button>
       </nav>
     </aside>
 
@@ -586,8 +601,8 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else>
-        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Approvals</p><h1>Access approvals</h1><p>Review new account requests. Approved users receive full dashboard access.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadPendingProfiles">{{ approvalsBusy ? 'Refreshing…' : 'Refresh requests' }}</button></section>
-        <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><p v-if="!approvalsBusy && pendingProfiles.length === 0" class="empty-state">There are no pending approval requests.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Action</th></tr></thead><tbody><tr v-for="request in pendingProfiles" :key="request.id"><td><strong>{{ request.fullName }}</strong></td><td>{{ request.email }}</td><td>{{ request.position }}</td><td>{{ request.province }}</td><td class="approval-actions"><button class="approve-button" :disabled="approvalsBusy" @click="decideProfile(request, 'approved')">Approve</button><button class="deny-button" :disabled="approvalsBusy" @click="decideProfile(request, 'denied')">Deny</button></td></tr></tbody></table></div></section>
+        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles">{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
+        <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Restore access' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div></section>
       </template>
     </main>
   </div>
