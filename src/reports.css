@@ -30,15 +30,43 @@
 .names-table td small { display: block; color: #6b7b8c; font-size: 10px; }
 
 @media (max-width: 1100px) { .report-layout { grid-template-columns: 1fr; } .report-kpis { grid-template-columns: repeat(2, 1fr); } }
+/* Print: one 8.5 x 13 in landscape sheet (Philippine folio). Small margins; turn off "Headers and footers" in the print window. */
+@page { size: 8.5in 13in landscape; margin: 8mm; }
 @media print {
-  html, body, .app-shell { background: #fff !important; }
+  html, body, .app-shell { height: auto !important; min-height: 0 !important; background: #fff !important; }
+  .topbar, .sidebar, .page-heading, .report-controls, .refresh-note { display: none !important; }
+  /* The on-screen .content has 112px of top padding for the fixed header; none of that belongs on paper. */
+  .content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
   .report-layout { display: block; }
-  .report-paper { box-shadow: none !important; border: 0 !important; }
-  .report-paper header, .report-title, .report-kpis, .signatures, .report-total, .report-paper footer { break-inside: avoid; page-break-inside: avoid; }
-  .report-paper { max-width: none; }
+  .report-paper { max-width: none; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; box-shadow: none !important; border: 0 !important; font-size: 11px; }
+  /* Compact the vertical spacing so the title, table and signatures stay on one sheet. */
+  .report-paper > header { gap: 12px; }
+  .report-title { margin: 8px 0 6px; }
+  .report-kpis { margin: 8px 0 2px; }
+  .report-kpis div { padding: 7px 11px; }
+  .report-paper .report-table { margin-top: 8px; }
+  .report-paper .report-table th, .report-paper .report-table td { padding: 4px 8px; }
+  .report-subhead { margin: 12px 0 2px; break-after: avoid; }
+  .signatures { margin-top: 18px; gap: 40px; }
+  .signatures i { margin-top: 20px; }
+  .report-paper > footer { margin-top: 12px; }
+  .report-paper.dense .report-table th, .report-paper.dense .report-table td { padding: 2px 8px; font-size: 11px; line-height: 1.25; }
+  .report-paper.dense .report-kpis div { padding: 4px 11px; }
+  .report-paper.dense .report-kpis strong { font-size: 16px; }
+  .report-paper.dense .signatures { margin-top: 12px; }
+  .report-paper.tight .report-table th, .report-paper.tight .report-table td { padding: 1px 7px; font-size: 10.5px; line-height: 1.2; }
+  .report-paper.tight .report-kpis div { padding: 3px 10px; }
+  .report-paper.tight .report-kpis strong { font-size: 15px; }
+  .report-paper.tight .report-kpis { margin: 4px 0 0; }
+  .report-paper.tight .report-title { margin: 4px 0 2px; }
+  .report-paper.tight .report-subhead { margin: 6px 0 0; }
+  .report-paper.tight .signatures { margin-top: 8px; }
+  .report-paper.tight .signatures i { margin-top: 14px; }
+  .report-paper.tight > footer { margin-top: 6px; }
+  /* Keep each block whole; rows never split, table headers repeat if a long list runs onto more sheets. */
+  .report-paper > header, .report-title, .report-kpis, .signatures, .report-total, .report-paper > footer { break-inside: avoid; page-break-inside: avoid; }
   .report-paper .report-table tr, .names-table tr { break-inside: avoid; }
   .report-paper .report-table thead { display: table-header-group; }
-  .report-subhead { break-after: avoid; }
 }
 
 .report-hint.soft { background: rgba(99, 102, 241, .1); color: #3730a3; font-weight: 500; }

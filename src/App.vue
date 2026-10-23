@@ -347,6 +347,11 @@ const reportScope = computed<ReportScope>(() => {
   return { province: reportProvinceName.value, municipality: reportMunicipalityName.value }
 })
 const report = computed(() => buildReport(reviewRecords.value, reportScope.value))
+// Taller reports print with tighter rows so they still fit one folio sheet where possible.
+const reportDensity = computed(() => {
+  const rows = report.value.rows.length + (reportType.value === 'payment' ? report.value.modeShare.length + report.value.rows.length : 0)
+  return rows > 20 ? 'tight' : rows > 11 ? 'dense' : ''
+})
 const reportList = computed(() => reportNames.value === 'none' ? [] : beneficiaryList(reviewRecords.value, reportScope.value, reportNames.value))
 const reportHeading = computed(() => `${report.value.level.toUpperCase()} ${reportType.value === 'target' ? 'TARGET VS. ACTUAL ACCOMPLISHMENT REPORT' : 'PAYMENT MODE BREAKDOWN REPORT'}`)
 const reportScopeText = computed(() => reportLevel.value === 'regional'
@@ -761,11 +766,11 @@ onBeforeUnmount(() => {
             <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
             <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
-            <p class="report-hint soft">Paper size, orientation, margins and scale are chosen in your browser's print window, so you can match your printer.</p>
+            <p class="report-hint soft">Prints on one 8.5 × 13 in landscape sheet (folio). In the print window, keep Scale at 100% and turn off “Headers and footers”.</p>
             <p v-if="reportNames !== 'none'" class="report-hint">{{ number.format(reportList.length) }} names will be printed under the summary.</p>
             <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
           </aside>
-          <article class="report-paper">
+          <article class="report-paper" :class="reportDensity">
             <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>4Ps Enhanced Support Services Intervention · Davao Region</span></div></header>
             <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }} · As of {{ reportStamp }}</p></div>
 
