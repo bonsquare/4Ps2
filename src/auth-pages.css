@@ -44,13 +44,17 @@
 .link-button { display: block; margin: 14px auto 0; padding: 8px 12px; border: 0; background: transparent; color: #6d28d9; font-weight: 700; }
 .link-button:hover { text-decoration: underline; }
 
-.login-context { position: relative; overflow: hidden; justify-content: center; gap: 36px; padding: clamp(44px, 6vw, 96px);
-  background: linear-gradient(150deg, #1e3a8a 0%, #4338ca 38%, #7c3aed 68%, #db2777 100%); }
-.login-context::before { content: ""; position: absolute; inset: 0; background: url(/logo.png) no-repeat right -70px bottom -50px / 440px auto; opacity: .1; pointer-events: none; }
+.login-context { position: relative; overflow: hidden; justify-content: flex-start; gap: 36px; padding: clamp(44px, 6vw, 96px);
+  background: linear-gradient(180deg, #2f35c9 0%, #4a2fd8 60%, #7c3aed 100%); }
+/* Text sits on top; the picture is an in-flow block below it (bleeding to the panel edges), so they can never overlap. */
+.login-context { --pad: clamp(44px, 6vw, 96px); padding-top: 56px; }
+.login-context p.context-office { display: inline-block; max-width: none; margin-top: 10px; padding: 8px 16px; border: 1px solid rgba(255, 255, 255, .55); border-radius: 14px; background: rgba(255, 255, 255, .2); color: #fff; font-size: clamp(14px, 1.4vw, 19px); font-weight: 800; line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
+.login-context::before { content: ""; order: 2; flex: 1 0 300px; margin: 0 calc(var(--pad) * -1) calc(var(--pad) * -1); background: url(/login-bg.webp) no-repeat center bottom / cover; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28%); mask-image: linear-gradient(to bottom, transparent 0, #000 28%); pointer-events: none; }
 .login-context::after { content: ""; position: absolute; width: 520px; height: 520px; left: -160px; top: -200px; border: 0; border-radius: 50%; background: radial-gradient(circle, rgba(251, 191, 36, .35), transparent 65%); pointer-events: none; }
-.login-context > * { position: relative; z-index: 1; }
+.login-context > * { position: relative; z-index: 1; text-shadow: 0 2px 14px rgba(15, 23, 42, .35); }
 .login-context .context-kicker { color: #fde68a; }
-.login-context h2 { margin: 14px 0; max-width: 560px; font-size: clamp(34px, 4.6vw, 58px); letter-spacing: -.04em; }
+.login-context h2 { margin: 0 0 14px; max-width: 640px; font-size: clamp(26px, 3vw, 44px); line-height: 1.02; letter-spacing: -.04em; }
+.login-context p.context-sub { margin: 0 0 8px; color: #fde68a; font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; line-height: 1.2; }
 .login-context p { color: #e0e7ff; font-size: 17px; line-height: 1.65; max-width: 540px; }
 .feature-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; max-width: 540px; }
 .login-context .feature-list li { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid rgba(255, 255, 255, .24); border-radius: 18px; background: rgba(255, 255, 255, .12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }

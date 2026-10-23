@@ -722,12 +722,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
     <aside class="login-context" aria-label="System overview">
-      <div class="context-body"><span class="context-kicker">Pantawid Pamilyang Pilipino Program</span><h2>Serving every 4Ps family, tracked every day.</h2><p>Provincial teams keep their existing Google Sheets workflow. The Regional Program Management Office gets a consolidated, always-current picture of ESSI beneficiary targets and accomplishments across the Davao Region.</p></div>
-      <ul class="feature-list">
-        <li class="blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><div><strong>Always current</strong><span>Reads the provincial Google Sheets live, even when a sheet is filtered.</span></div></li>
-        <li class="green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><div><strong>Approved people only</strong><span>Province-scoped access, reviewed by the Super Administrator.</span></div></li>
-        <li class="amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg><div><strong>Print-ready reports</strong><span>Official accomplishment reports in one click.</span></div></li>
-      </ul>
+      <div class="context-body"><h2>Pantawid Pamilyang Pilipino Program</h2><p class="context-sub">Enhanced Support Services Intervention</p><p class="context-office">Regional Program Management Office Monitoring</p></div>
     </aside>
   </main>
 
