@@ -342,7 +342,8 @@ async function loadGoogleSheets(force = false) {
   }
 }
 
-watch([activeView, selectedProvinceId, loggedIn], async () => { await nextTick(); makeCharts() })
+// appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
+watch([activeView, selectedProvinceId, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
 watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
