@@ -125,8 +125,8 @@ async function setupLoginSecurity() {
   }
 }
 
-// Regional totals only count provinces that have made an update (accomplished > 0).
-const totals = computed(() => aggregateProvinces(provinces.filter((item) => item.accomplished > 0)))
+// Regional target is the overall target across every province; accomplished only grows as provinces update.
+const totals = computed(() => aggregateProvinces(provinces))
 const selectedProvince = computed(() => provinces.find((item) => item.id === selectedProvinceId.value) ?? provinces[0])
 const isProvinceView = computed(() => activeView.value === 'province' || role.value === 'provincial')
 const displayMetrics = computed(() => isProvinceView.value
