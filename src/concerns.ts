@@ -63,6 +63,6 @@ export function parseConcerns(csv: string): Concern[] {
 
 export async function getConcerns(fetcher: typeof fetch = fetch) {
   const response = await fetcher(`https://docs.google.com/spreadsheets/d/${CONCERNS_SPREADSHEET_ID}/export?format=csv&gid=${CONCERNS_GID}`)
-  if (!response.ok) throw new Error('Unable to read the community concerns sheet')
+  if (!response.ok) throw new Error('Unable to read the ESSI Community Support sheet')
   return { concerns: parseConcerns(await response.text()), sheetUrl: CONCERNS_SHEET_URL, lastRefresh: new Date().toISOString() }
 }

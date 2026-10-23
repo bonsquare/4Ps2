@@ -377,12 +377,12 @@ async function loadConcerns(force = false) {
     const response = await fetch(force ? '/concerns-data?fresh=1' : '/concerns-data', { headers: session ? { Authorization: `Bearer ${session.access_token}` } : {} })
     if (!response.ok) {
       const detail = await response.json().then((body: { error?: string }) => body.error, () => undefined)
-      throw new Error(detail ?? 'Unable to load community concerns')
+      throw new Error(detail ?? 'Unable to load ESSI Community Support')
     }
     concerns.value = (await response.json() as { concerns: Concern[] }).concerns
     concernsError.value = ''
   } catch (error) {
-    concernsError.value = error instanceof Error ? error.message : 'Unable to load community concerns'
+    concernsError.value = error instanceof Error ? error.message : 'Unable to load ESSI Community Support'
   } finally {
     concernsLoading.value = false
   }
@@ -659,7 +659,7 @@ onBeforeUnmount(() => {
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
-        <button :class="{ active: activeView === 'concerns' }" @click="navigate('concerns')"><i>✎</i>Community concerns<span v-if="concernCounts.open" class="notify-dot soft" :aria-label="`${concernCounts.open} open concerns`">{{ concernCounts.open }}</span></button>
+        <button :class="{ active: activeView === 'concerns' }" @click="navigate('concerns')"><i>✎</i>ESSI Community Support<span v-if="concernCounts.open" class="notify-dot soft" :aria-label="`${concernCounts.open} open concerns`">{{ concernCounts.open }}</span></button>
         <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management<span v-if="profileCounts.pending" class="notify-dot" :aria-label="`${profileCounts.pending} pending access requests`">{{ profileCounts.pending }}</span></button>
       </nav>
     </aside>
@@ -740,7 +740,7 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else-if="activeView === 'concerns'">
-        <section class="page-heading"><div><p class="breadcrumb">Dashboard / Community concerns</p><h1>Community concerns</h1><p>Questions, issues and recommendations raised from the field, and the response given.</p></div>
+        <section class="page-heading"><div><p class="breadcrumb">Dashboard / ESSI Community Support</p><h1>ESSI Community Support</h1><p>Questions, issues and recommendations raised from the field, and the response given.</p></div>
           <div class="heading-actions"><a class="refresh-button link-as-button" :href="CONCERNS_SHEET_URL" target="_blank" rel="noopener noreferrer">Add or edit in Google Sheets ↗</a><button class="refresh-button" :disabled="concernsLoading" @click="loadConcerns(true)">{{ concernsLoading ? 'Refreshing…' : 'Refresh' }}</button></div></section>
         <div v-if="concernsError" class="connection-error" role="alert">{{ concernsError }}</div>
         <section class="metrics concern-metrics" aria-label="Concern summary">
