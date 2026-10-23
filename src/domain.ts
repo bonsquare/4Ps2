@@ -1,4 +1,4 @@
-export type Province = { id: string; name: string; target: number; accomplished: number; today: number }
+export type Province = { id: string; name: string; target: number; accomplished: number; today: number; daily?: Record<string, number> }
 export type UserScope = { role: 'regional' | 'provincial'; provinceId?: string }
 
 export function aggregateProvinces(provinces: Province[]) {

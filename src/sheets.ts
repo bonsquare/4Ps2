@@ -281,9 +281,9 @@ export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch) {
 
   return {
     source: 'Google Sheets',
-    provinces: results.map(({ daily, records: _records, ...province }) => ({
+    provinces: results.map(({ records: _records, ...province }) => ({
       ...province,
-      today: daily[new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())] ?? 0,
+      today: province.daily[new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())] ?? 0,
     })),
     records: results.flatMap((province) => province.records),
     daily: Object.entries(dailyTotals).sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value })),

@@ -291,9 +291,9 @@ function makeCharts() {
     const p = selectedProvince.value
     firstChart.setOption({
       grid: { left: 44, right: 18, top: 38, bottom: 36 },
-      tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: text },
-      yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
-      series: [{ type: 'bar', data: daily.value.map((d) => Math.round(d[1] * (totals.value.accomplished ? p.accomplished / totals.value.accomplished : 0))),
+      tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
+      series: [{ type: 'bar', data: lastSevenDays(p.daily ?? {}).map((d) => d[1]),
         barWidth: '48%', itemStyle: { color: '#17795f', borderRadius: [5, 5, 0, 0] }, label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } }],
     })
     secondChart.setOption({
