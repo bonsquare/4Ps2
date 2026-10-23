@@ -8,7 +8,7 @@ type ServerResponse = {
   status(code: number): { json(body: unknown): void }
 }
 
-const CACHE_MS = 60_000
+const CACHE_MS = 15_000
 let cached: { at: number; snapshot: Snapshot } | undefined
 
 // The snapshot carries beneficiary contact and personal details, so only signed-in, approved users may read it.

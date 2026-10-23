@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyFirstSeen, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
 const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
@@ -196,6 +196,15 @@ describe('applyFirstSeen', () => {
     expect(result.provinces[0].daily).toEqual({ '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 })
     expect(result.provinces[0].today).toBe(1)
     expect(result.daily.reduce((sum, item) => sum + item.value, 0)).toBe(3)
+  })
+
+  it('stamps each accomplished record with the day it is counted on, and summarizes any slice of records', () => {
+    const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
+
+    expect(result.records.map((record) => record.countedDate)).toEqual(['2026-10-18', '2026-10-21', '2026-10-23', undefined])
+    expect(summarizeRecords(result.records, '2026-10-23')).toEqual({
+      target: 4, accomplished: 3, today: 1, daily: { '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 },
+    })
   })
 })
 

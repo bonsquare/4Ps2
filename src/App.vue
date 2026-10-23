@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -27,21 +27,19 @@ const provinces = reactive<Province[]>([
   { id: 'occidental', name: 'Davao Occidental', target: 760, accomplished: 604, today: 26 },
 ])
 
-// The trend charts show the last 7 days (Asia/Manila) as a running total: everything accomplished before the
-// window plus each day's output, so the line only ever rises or stays flat.
+// The trend charts show the real count for each of the last 7 days (Asia/Manila); days with none are 0.
 const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
 function lastSevenDays(values: Record<string, number>): Array<[string, number]> {
   const dates = Array.from({ length: 7 }, (_, index) => manilaDate(6 - index))
-  let total = Object.entries(values).filter(([date]) => date < dates[0]).reduce((sum, [, value]) => sum + value, 0)
   return dates.map((date) => {
-    total += values[date] ?? 0
     const day = new Date(`${date}T00:00:00+08:00`)
     const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }).format(day)
     const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(day)
-    return [`${weekday}\n${monthDay}`, total]
+    return [`${weekday}\n${monthDay}`, values[date] ?? 0]
   })
 }
 const daily = ref<Array<[string, number]>>(lastSevenDays({}))
+const completionOf = (item: { target: number; accomplished: number }) => item.target ? Math.round(item.accomplished / item.target * 1000) / 10 : 0
 
 const currentUser = ref<User | null>(null)
 const loggedIn = computed(() => Boolean(currentUser.value))
@@ -155,9 +153,19 @@ async function setupLoginSecurity() {
 const totals = computed(() => aggregateProvinces(provinces))
 const selectedProvince = computed(() => provinces.find((item) => item.id === selectedProvinceId.value) ?? provinces[0])
 const isProvinceView = computed(() => activeView.value === 'province' || role.value === 'provincial')
-const displayMetrics = computed(() => isProvinceView.value
-  ? aggregateProvinces([selectedProvince.value])
-  : totals.value)
+const municipality = ref('all')
+const provinceRecords = computed(() => filterRecordsByProvince(reviewRecords.value, selectedProvince.value?.name))
+const municipalities = computed(() => [...new Set(provinceRecords.value.map((record) => record.municipality).filter(Boolean))].sort())
+const municipalityActive = computed(() => isProvinceView.value && municipality.value !== 'all')
+// With a municipality picked, the province dashboard is recomputed from just that municipality's records.
+const scopeSummary = computed(() => municipalityActive.value
+  ? summarizeRecords(provinceRecords.value.filter((record) => record.municipality === municipality.value), manilaDate(0))
+  : null)
+const displayMetrics = computed(() => scopeSummary.value
+  ? aggregateProvinces([{ id: 'municipality', name: municipality.value, ...scopeSummary.value }])
+  : isProvinceView.value
+    ? aggregateProvinces([selectedProvince.value])
+    : totals.value)
 const reviewProvinceName = computed(() => {
   const provinceId = isProvinceView.value ? selectedProvinceId.value : reviewProvinceId.value
   return provinces.find((province) => province.id === provinceId)?.name
@@ -165,6 +173,7 @@ const reviewProvinceName = computed(() => {
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
   return filterRecordsByProvince(reviewRecords.value, reviewProvinceName.value).filter((record) => {
+    if (municipalityActive.value && record.municipality !== municipality.value) return false
     const matchesStatus = !isProvinceView.value ? record.accomplished : reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
     const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay]
@@ -301,7 +310,7 @@ function makeCharts() {
       tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } },
       yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{
-        name: 'Province accomplishments', type: 'line', data: lastSevenDays(p.daily ?? {}).map((d) => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
+        name: 'Province accomplishments', type: 'line', data: lastSevenDays(scopeSummary.value?.daily ?? p.daily ?? {}).map((d) => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
         lineStyle: { width: 3, color: '#17795f' }, itemStyle: { color: '#17795f', borderColor: '#fff', borderWidth: 2 },
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(23,121,95,.28)' }, { offset: 1, color: 'rgba(23,121,95,0)' }] } },
         label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 },
@@ -312,20 +321,27 @@ function makeCharts() {
       xAxis: { type: 'category', data: ['Target', 'Accomplished', 'Remaining'], axisLabel: text },
       yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{ type: 'bar', barWidth: '42%', data: [
-        { value: p.target, itemStyle: { color: '#1d5b91' } },
-        { value: p.accomplished, itemStyle: { color: '#17795f' } },
-        { value: p.target - p.accomplished, itemStyle: { color: '#d29b2d' } },
+        { value: displayMetrics.value.target, itemStyle: { color: '#1d5b91' } },
+        { value: displayMetrics.value.accomplished, itemStyle: { color: '#17795f' } },
+        { value: displayMetrics.value.remaining, itemStyle: { color: '#d29b2d' } },
       ], label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } }],
     })
   } else {
+    // Vertical grouped bars, one pair per province, with the full province name under each pair (wrapped on two lines).
     firstChart.setOption({
-      legend: { data: ['Target', 'Actual'], top: 0, right: 8, textStyle: text }, grid: { left: 50, right: 18, top: 48, bottom: 62 },
-      tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => number.format(Number(value)) },
-      xAxis: { type: 'category', data: provinces.map(p => p.name.replace('Davao ', '')), axisLabel: { ...text, interval: 0, rotate: 22 } },
-      yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
+      legend: { data: ['Target', 'Actual'], top: 0, right: 8, textStyle: text },
+      grid: { left: 52, right: 16, top: 64, bottom: 44 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: (value: unknown) => number.format(Number(value)) },
+      xAxis: {
+        type: 'category', data: provinces.map((p) => p.name), axisTick: { show: false },
+        axisLabel: { ...text, interval: 0, fontWeight: 600, lineHeight: 16, formatter: (name: string) => name.replace(/^Davao /, 'Davao\n').replace(/\b(de|del)\b/, (word) => word[0].toUpperCase() + word.slice(1)) },
+      },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [
-        { name: 'Target', type: 'bar', data: provinces.map(p => p.target), itemStyle: { color: '#b8c8d8', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', color: '#5b6f84', fontWeight: 700, formatter: (item: { value: unknown }) => number.format(Number(item.value)) } },
-        { name: 'Actual', type: 'bar', data: provinces.map(p => p.accomplished), itemStyle: { color: '#17795f', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } },
+        { name: 'Target', type: 'bar', barGap: '12%', barMaxWidth: 34, data: provinces.map((p) => p.target), itemStyle: { color: '#b8c8d8', borderRadius: [6, 6, 0, 0] },
+          label: { show: true, position: 'top', color: '#5b6f84', fontWeight: 700, formatter: (item: { value: unknown }) => number.format(Number(item.value)) } },
+        { name: 'Actual', type: 'bar', barMaxWidth: 34, data: provinces.map((p) => p.accomplished), itemStyle: { color: '#17795f', borderRadius: [6, 6, 0, 0] },
+          label: { show: true, position: 'top', color: '#0f5f49', fontWeight: 800, formatter: (item: { value: unknown; dataIndex: number }) => number.format(Number(item.value)) + '\n' + completionOf(provinces[item.dataIndex]) + '%' } },
       ],
     })
     secondChart.setOption({
@@ -376,9 +392,10 @@ async function loadGoogleSheets(force = false) {
 }
 
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
-watch([activeView, selectedProvinceId, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
+watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
 watch(appAccess, (access) => { if (access === 'approved') loadGoogleSheets() })
-watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
+watch(selectedProvinceId, () => { municipality.value = 'all' })
+watch([selectedProvinceId, municipality, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
@@ -409,7 +426,7 @@ onMounted(async () => {
   if (!devBypass && authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value) refreshDataInBackground()
-  }, 30_000)
+  }, 15_000)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
@@ -496,26 +513,27 @@ onBeforeUnmount(() => {
     <main class="content">
       <template v-if="activeView !== 'reports' && activeView !== 'approvals'">
         <section class="page-heading">
-          <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name : 'Regional overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
+          <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
           <div class="heading-actions">
+            <label v-if="role === 'regional' && isProvinceView">Province<select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
+            <label v-if="isProvinceView">Municipality<select v-model="municipality"><option value="all">All municipalities</option><option v-for="item in municipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Reporting period<select v-model="period"><option>Today</option><option>This week</option><option>This month</option></select></label>
             <button class="refresh-button" :disabled="refreshing" @click="refreshData">{{ refreshing ? 'Refreshing…' : 'Refresh data' }}</button>
           </div>
         </section>
-        <div v-if="role === 'regional' && isProvinceView" class="province-picker"><label for="province">Viewing province</label><select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
         <div v-if="dataError" class="connection-error" role="alert">Live Google Sheets connection failed: {{ dataError }}. The last available values remain on screen.</div>
         <section class="metrics" aria-label="Performance summary">
-          <article><span>{{ isProvinceView ? 'Provincial target' : 'Regional target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
+          <article><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial target') : 'Regional target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
           <article><span>Accomplished</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
           <article><span>Remaining</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
           <article><span>Completion</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
           <article><span>Today's accomplishment</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? 'Running total of verified output, last 7 days' : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : 'Running total of accomplishments, last 7 days' }}</p></div></header><div ref="chartTwo" class="chart"></div></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? `Verified output per day, last 7 days · total ${number.format(displayMetrics.accomplished)}` : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : `Accomplishments per day, last 7 days · total ${number.format(totals.accomplished)}` }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
         </section>
-        <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td><span class="table-percent">{{ item.target ? `${Math.round(item.accomplished / item.target * 100)}%` : '—' }}</span></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
+        <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td class="completion-cell"><div class="completion-wrap"><div class="mini-bar"><span :style="{ width: `${completionOf(item)}%` }"></span></div><strong>{{ item.target ? `${completionOf(item)}%` : '—' }}</strong></div></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">

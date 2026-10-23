@@ -58,6 +58,7 @@ export type ReviewRecord = {
   payment: PaymentDetails
   personal: PersonalDetails
   education: EducationDetails
+  countedDate?: string // the day an accomplished row is counted on (its sheet date, else first seen)
 }
 
 export function countAccomplishments(rows: string[][]) {
@@ -309,9 +310,25 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
     daily[date] = (daily[date] ?? 0) + 1
     if (date === today) province.today += 1
   }
+  const records = snapshot.records.map((record) => (
+    record.accomplished ? { ...record, countedDate: record.date ?? firstSeen[entryKey(record)] ?? today } : record
+  ))
   return {
     ...snapshot,
+    records,
     provinces,
     daily: Object.entries(daily).sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value })),
   }
+}
+
+// Target, accomplished and per-day counts for any slice of records (e.g. one municipality).
+export function summarizeRecords(records: ReviewRecord[], today: string) {
+  const daily: Record<string, number> = {}
+  let accomplished = 0
+  for (const record of records) {
+    if (!record.accomplished) continue
+    accomplished += 1
+    if (record.countedDate) daily[record.countedDate] = (daily[record.countedDate] ?? 0) + 1
+  }
+  return { target: records.length, accomplished, today: daily[today] ?? 0, daily }
 }
