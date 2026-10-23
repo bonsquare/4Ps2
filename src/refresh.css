@@ -162,3 +162,8 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .review-status.denied { background: rgba(166, 58, 58, .12); color: #8f2f2f; }
 .admin-tag { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; color: var(--green); }
 .muted-note { color: var(--ink-3); }
+
+/* Pending-request badge on the User management tab */
+.notify-dot { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; display: grid; place-items: center; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11.5px; font-weight: 800; box-shadow: 0 0 0 3px rgba(229, 72, 77, .3); animation: notify 2s ease-in-out infinite; }
+@keyframes notify { 50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); } }
+@media (prefers-reduced-motion: reduce) { .notify-dot { animation: none; } }

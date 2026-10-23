@@ -243,15 +243,16 @@ async function submitProfile() {
   profileBusy.value = false
 }
 
-async function loadProfiles() {
-  if (!superAdmin.value || !authClient) return
-  approvalsBusy.value = true
+// quiet = background poll that keeps the sidebar's pending-request badge current without flashing the busy state.
+async function loadProfiles(quiet = false) {
+  if (!superAdmin.value || !authClient || devBypass) return
+  if (!quiet) approvalsBusy.value = true
   const { data, error } = await authClient.from('user_profiles')
     .select('id, email, full_name, position, province, status, is_super_admin')
     .order('requested_at', { ascending: true })
-  if (error) profileError.value = 'Unable to load users.'
+  if (error) { if (!quiet) profileError.value = 'Unable to load users.' }
   else managedProfiles.value = (data ?? []).map(toProfile)
-  approvalsBusy.value = false
+  if (!quiet) approvalsBusy.value = false
 }
 
 async function decideProfile(request: UserProfile, status: 'approved' | 'denied') {
@@ -409,6 +410,7 @@ async function loadGoogleSheets(force = false) {
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
 watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
 watch(appAccess, (access) => { if (access === 'approved') loadGoogleSheets() })
+watch(superAdmin, (isAdmin) => { if (isAdmin) loadProfiles(true) })
 watch(selectedProvinceId, () => { municipality.value = 'all' })
 watch([selectedProvinceId, municipality, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
@@ -419,6 +421,10 @@ onMounted(async () => {
   clockTimer = window.setInterval(() => { now.value = new Date() }, 1000)
   loadGoogleSheets()
   if (devBypass) {
+    managedProfiles.value = [
+      { id: 'sample-1', email: 'new.user@example.com', fullName: 'Sample Applicant', position: 'Provincial Link', province: 'Davao del Sur', status: 'pending', isSuperAdmin: false },
+      { id: 'sample-2', email: 'jeff@example.com', fullName: 'Sample Member', position: 'Encoder', province: 'Davao Oriental', status: 'approved', isSuperAdmin: false },
+    ]
     currentUser.value = { id: 'local-dev', email: 'dev@localhost', user_metadata: { full_name: 'Local Developer' } } as unknown as User
     profile.value = { id: 'local-dev', email: 'dev@localhost', fullName: 'Local Developer', position: 'Super Administrator', province: 'Regional Office', status: 'approved', isSuperAdmin: true }
   } else if (auth) {
@@ -441,6 +447,7 @@ onMounted(async () => {
   if (!devBypass && authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value) refreshDataInBackground()
+    if (superAdmin.value) loadProfiles(true)
   }, 15_000)
 })
 onBeforeUnmount(() => {
@@ -521,7 +528,7 @@ onBeforeUnmount(() => {
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
-        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management</button>
+        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management<span v-if="profileCounts.pending" class="notify-dot" :aria-label="`${profileCounts.pending} pending access requests`">{{ profileCounts.pending }}</span></button>
       </nav>
     </aside>
 
@@ -601,7 +608,7 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else>
-        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles">{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
+        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles()">{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
         <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div></section>
       </template>
     </main>
