@@ -337,8 +337,6 @@ const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
 const reportProvince = ref('')
 const reportMunicipality = ref('')
 const reportNames = ref<'none' | 'validated' | 'all'>('none')
-const paperSize = ref<'A4' | 'Folio'>('A4')
-const orientation = ref<'portrait' | 'landscape'>('portrait')
 watch(role, (value) => { if (value === 'provincial' && reportLevel.value === 'regional') reportLevel.value = 'provincial' }, { immediate: true })
 const reportProvinceName = computed(() => role.value === 'provincial' ? selectedProvince.value?.name : (reportProvince.value || provinces[0]?.name))
 const reportMunicipalities = computed(() => [...new Set(filterRecordsByProvince(reviewRecords.value, reportProvinceName.value).map((record) => record.municipality).filter(Boolean))].sort())
@@ -359,15 +357,6 @@ const reportScopeText = computed(() => reportLevel.value === 'regional'
 const dayLabel = (iso?: string) => iso ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${iso}T00:00:00+08:00`)) : '—'
 const reportStamp = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(now.value))
 watch(reportProvince, () => { reportMunicipality.value = '' })
-// Paper size and orientation drive the browser's print page; a style tag keeps @page in step with the choices.
-function applyPageStyle() {
-  let tag = document.getElementById('report-page-style')
-  if (!tag) { tag = document.createElement('style'); tag.id = 'report-page-style'; document.head.appendChild(tag) }
-  // Folio is the Philippine long bond size, 8.5 x 13 in; landscape swaps the sides.
-  const size = paperSize.value === 'Folio' ? (orientation.value === 'landscape' ? '13in 8.5in' : '8.5in 13in') : `A4 ${orientation.value}`
-  tag.textContent = `@page { size: ${size}; margin: 14mm; }`
-}
-watch([paperSize, orientation], applyPageStyle, { immediate: true })
 
 // ---- Community concerns (second Google Sheet) ----
 const concerns = ref<Concern[]>([])
@@ -772,12 +761,11 @@ onBeforeUnmount(() => {
             <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
             <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
-            <label>Paper size<select v-model="paperSize"><option>A4</option><option value="Folio">Folio (8.5 × 13 in)</option></select></label>
-            <label>Orientation<select v-model="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+            <p class="report-hint soft">Paper size, orientation, margins and scale are chosen in your browser's print window, so you can match your printer.</p>
             <p v-if="reportNames !== 'none'" class="report-hint">{{ number.format(reportList.length) }} names will be printed under the summary.</p>
             <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
           </aside>
-          <article class="report-paper" :class="orientation">
+          <article class="report-paper">
             <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>4Ps Enhanced Support Services Intervention · Davao Region</span></div></header>
             <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }} · As of {{ reportStamp }}</p></div>
 
