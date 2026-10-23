@@ -5,6 +5,7 @@ import './refresh.css'
 import './auth-pages.css'
 import './concerns.css'
 import './reports.css'
+import './mobile.css'
 
 createApp(App).mount('#app')
 

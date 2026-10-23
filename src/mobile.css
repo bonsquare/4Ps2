@@ -1,0 +1,37 @@
+/* Phone layout. Loaded last: refresh.css re-styles the topbar pill, cards and heading after style.css's
+   mobile rules, which undid them on phones (oversized pill, wrapping clock, one-column cards). */
+@media (max-width: 760px) {
+  .topbar { padding: 0 10px; gap: 6px; }
+  .brand { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  img.mini-seal { height: 36px; max-width: 44px; }
+  .brand strong { max-width: none; font-size: 12.5px; }
+  .topbar-actions { flex: 0 0 auto; gap: 8px; }
+  .clock { margin-right: 0; padding-right: 0; border-right: 0; }
+  .clock strong { white-space: nowrap; font-size: 13px; }
+  .avatar { width: 36px; height: 36px; font-size: 13px; }
+
+  /* Live chip shrinks to a dot and the word "Live" instead of a three-line blob. */
+  .sample-pill, .sample-pill.live { display: inline-flex; flex: 0 0 auto; align-items: center; padding: 5px 9px; font-size: 0; letter-spacing: 0; white-space: nowrap; }
+  .sample-pill.live::after { content: "Live"; margin-left: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .sample-pill:not(.live)::after { content: "…"; font-size: 12px; }
+
+  .content { padding: 92px 14px 28px; }
+  .page-heading h1 { font-size: clamp(24px, 7vw, 30px); }
+  .page-heading p:last-child { font-size: 14px; }
+
+  /* Two cards per row; an odd last card takes the full row. */
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .metrics article { min-height: 96px; padding: 14px 14px 12px; border-radius: 16px; }
+  .metrics article:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .metrics article::after { width: 80px; height: 80px; right: -24px; bottom: -28px; }
+  .metrics span { font-size: 10px; letter-spacing: .04em; }
+  .metrics strong { margin: 6px 0 4px; font-size: 24px; }
+  .metrics small { font-size: 11px; line-height: 1.3; }
+
+  .card { padding: 14px; border-radius: 16px; }
+}
+
+@media (max-width: 360px) {
+  .brand strong { font-size: 11.5px; }
+  .clock strong { font-size: 12px; }
+}
