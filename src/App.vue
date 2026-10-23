@@ -146,6 +146,14 @@ const reviewProvinceId = ref('all')
 const reviewQuery = ref('')
 const reviewStatus = ref<'all' | 'accomplished' | 'pending'>('all')
 const reviewPage = ref(1)
+const reviewMunicipality = ref('all')
+const reviewBarangay = ref('all')
+const reviewMode = ref('all')
+const validatedFrom = ref('')
+const validatedTo = ref('')
+const claimedFrom = ref('')
+const claimedTo = ref('')
+const reviewRemarks = ref<'all' | 'with' | 'without'>('all')
 const selectedReviewRecord = ref<ReviewRecord | null>(null)
 const chartOne = ref<HTMLElement | null>(null)
 const chartTwo = ref<HTMLElement | null>(null)
@@ -234,13 +242,39 @@ const reviewProvinceName = computed(() => {
   const provinceId = isProvinceView.value ? selectedProvinceId.value : reviewProvinceId.value
   return provinces.find((province) => province.id === provinceId)?.name
 })
+// Records in the chosen province, before the other filters, so the municipality / barangay lists follow it.
+const reviewScope = computed(() => filterRecordsByProvince(reviewRecords.value, reviewProvinceName.value))
+const reviewMunicipalities = computed(() => [...new Set(reviewScope.value.map((record) => record.municipality).filter(Boolean))].sort())
+const reviewBarangays = computed(() => [...new Set(reviewScope.value
+  .filter((record) => reviewMunicipality.value === 'all' || record.municipality === reviewMunicipality.value)
+  .map((record) => record.barangay).filter(Boolean))].sort())
+const reviewModes = computed(() => {
+  const seen = new Map<string, string>()
+  for (const record of reviewRecords.value) if (record.paymentMode) seen.set(record.paymentMode.trim().toLowerCase(), record.paymentMode.trim())
+  return [...seen.values()].sort()
+})
+const inRange = (value: string | null | undefined, from: string, to: string) => !(from || to) || (!!value && (!from || value >= from) && (!to || value <= to))
+const reviewFiltersActive = computed(() => [reviewProvinceId.value !== 'all' && !isProvinceView.value, reviewMunicipality.value !== 'all' && !isProvinceView.value, reviewBarangay.value !== 'all', reviewMode.value !== 'all', validatedFrom.value, validatedTo.value, claimedFrom.value, claimedTo.value, reviewRemarks.value !== 'all', reviewQuery.value.trim()].filter(Boolean).length)
+function clearReviewFilters() {
+  if (!isProvinceView.value) reviewProvinceId.value = 'all'
+  reviewMunicipality.value = 'all'; reviewBarangay.value = 'all'; reviewMode.value = 'all'
+  validatedFrom.value = ''; validatedTo.value = ''; claimedFrom.value = ''; claimedTo.value = ''
+  reviewRemarks.value = 'all'; reviewQuery.value = ''
+}
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
-  return filterRecordsByProvince(reviewRecords.value, reviewProvinceName.value).filter((record) => {
+  return reviewScope.value.filter((record) => {
     if (municipalityActive.value && record.municipality !== municipality.value) return false
+    if (!isProvinceView.value && reviewMunicipality.value !== 'all' && record.municipality !== reviewMunicipality.value) return false
+    if (reviewBarangay.value !== 'all' && record.barangay !== reviewBarangay.value) return false
+    if (reviewMode.value !== 'all' && record.paymentMode.trim().toLowerCase() !== reviewMode.value.toLowerCase()) return false
+    if (!inRange(record.validatedDate, validatedFrom.value, validatedTo.value)) return false
+    if (!inRange(record.payment.dateClaimed, claimedFrom.value, claimedTo.value)) return false
+    if (reviewRemarks.value === 'with' && !record.payment.remarks) return false
+    if (reviewRemarks.value === 'without' && record.payment.remarks) return false
     const matchesStatus = !isProvinceView.value ? record.accomplished : reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
-    const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay]
+    const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
       .some((value) => value.toLowerCase().includes(query))
     return matchesStatus && matchesQuery
   })
@@ -555,7 +589,9 @@ watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profil
 watch(appAccess, (access) => { if (access === 'approved') { loadGoogleSheets(); loadConcerns() } })
 watch(superAdmin, (isAdmin) => { if (isAdmin) loadProfiles(true) })
 watch(selectedProvinceId, () => { municipality.value = 'all' })
-watch([selectedProvinceId, municipality, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
+watch([reviewProvinceId, selectedProvinceId], () => { reviewMunicipality.value = 'all'; reviewBarangay.value = 'all' })
+watch(reviewMunicipality, () => { reviewBarangay.value = 'all' })
+watch([selectedProvinceId, municipality, reviewProvinceId, reviewQuery, reviewStatus, reviewMunicipality, reviewBarangay, reviewMode, validatedFrom, validatedTo, claimedFrom, claimedTo, reviewRemarks], () => { reviewPage.value = 1 })
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
@@ -684,7 +720,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell">
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
-      <div class="brand"><img class="mini-seal" src="/logo.png" alt="4Ps logo" /><div><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Program Management Office</span></div></div>
+      <div class="brand"><img class="mini-seal" src="/logo.png" alt="4Ps logo" /><div><small class="brand-kicker">Pantawid Pamilyang Pilipino Program</small><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Program Management Office</span></div></div>
       <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><div class="account"><button class="avatar" aria-label="Open account menu" aria-haspopup="menu" :aria-expanded="accountMenuOpen" @click="accountMenuOpen = !accountMenuOpen">{{ accountInitials || (role === 'regional' ? 'RA' : 'DS') }}</button><div v-if="accountMenuOpen" class="account-menu" role="menu"><div class="account-id"><strong>{{ accountName }}</strong><span>{{ currentUser?.email ?? 'Google account' }}</span></div><button class="account-logout" role="menuitem" @click="accountMenuOpen = false; logout()"><i>↪</i>Log out</button></div></div></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
@@ -725,9 +761,23 @@ onBeforeUnmount(() => {
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
             <label>Province<select v-if="!isProvinceView" v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select><input v-else :value="selectedProvince.name" readonly aria-label="Selected province" /></label>
+            <label v-if="!isProvinceView">Municipality<select v-model="reviewMunicipality"><option value="all">All municipalities</option><option v-for="item in reviewMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated</option><option value="pending">For Validation</option></select></label>
-            <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
+            <label>Payment mode<select v-model="reviewMode"><option value="all">All modes</option><option v-for="item in reviewModes" :key="item" :value="item">{{ item }}</option></select></label>
+            <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, account, location or remarks" /></label>
           </div>
+          <details class="more-filters" :open="reviewFiltersActive > 0">
+            <summary>More filters<span v-if="reviewFiltersActive" class="filter-count">{{ reviewFiltersActive }} active</span></summary>
+            <div class="review-filters more-grid">
+              <label>Barangay<select v-model="reviewBarangay"><option value="all">All barangays</option><option v-for="item in reviewBarangays" :key="item" :value="item">{{ item }}</option></select></label>
+              <label>Remarks<select v-model="reviewRemarks"><option value="all">All</option><option value="with">With remarks</option><option value="without">Without remarks</option></select></label>
+              <label>Date validated · from<input v-model="validatedFrom" type="date" /></label>
+              <label>Date validated · to<input v-model="validatedTo" type="date" /></label>
+              <label>Date claimed / opened · from<input v-model="claimedFrom" type="date" /></label>
+              <label>Date claimed / opened · to<input v-model="claimedTo" type="date" /></label>
+            </div>
+            <button class="clear-filters" :disabled="!reviewFiltersActive" @click="clearReviewFilters">Clear all filters</button>
+          </details>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
           <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th class="claimed-head">Date Claimed/Account Opened (LBP servicing Branch)</th><th>Status</th><th>Date validated</th><th>Remarks</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td class="location-cell">{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td class="nowrap-cell">{{ record.payment.dateClaimed ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.payment.dateClaimed}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td><td class="nowrap-cell">{{ record.validatedDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.validatedDate}T00:00:00+08:00`)) : '—' }}</td><td class="remarks-cell">{{ record.payment.remarks || '—' }}</td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
