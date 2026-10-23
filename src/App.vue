@@ -570,8 +570,7 @@ function makeCharts() {
   } else {
     // Vertical grouped bars, one pair per province, with the full province name under each pair (wrapped on two lines).
     firstChart.setOption({
-      legend: { data: ['Target', 'Actual'], top: 0, right: 8, textStyle: text },
-      grid: { left: 52, right: 16, top: 64, bottom: 44 },
+      grid: { left: 52, right: 16, top: 40, bottom: 44 },
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: (value: unknown) => number.format(Number(value)) },
       xAxis: {
         type: 'category', data: provinces.map((p) => p.name), axisTick: { show: false },
