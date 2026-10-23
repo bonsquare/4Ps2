@@ -76,3 +76,6 @@
 @media (prefers-reduced-motion: reduce) { .login-card, .live-chip.on i { animation: none !important; } }
 
 .login-card .setup-note { margin-top: 14px; }
+
+.live-chip.secure { background: rgba(124, 58, 237, .1); color: #5b21b6; }
+.live-chip.secure i { background: #7c3aed; }

@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
         <p class="eyebrow">Regional Program Management Office</p>
         <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
         <p class="login-copy">Sign in to view the regional and provincial performance dashboards.</p>
-        <span class="live-chip" :class="{ on: dataConnected }"><i></i>{{ dataConnected ? 'Live Google Sheets data connected' : 'Connecting to Google Sheets…' }}</span>
+        <span class="live-chip secure"><i></i>Private dashboard · approved accounts only</span>
         <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
         <ol class="sign-steps">
           <li :class="{ done: captchaToken }"><span class="step-num">1</span><div class="step-body"><strong>Security check</strong>
