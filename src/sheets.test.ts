@@ -202,7 +202,7 @@ describe('applyFirstSeen', () => {
     const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
 
     expect(result.records.map((record) => record.countedDate)).toEqual(['2026-10-18', '2026-10-21', '2026-10-23', undefined])
-    expect(result.records.map((record) => record.validatedDate)).toEqual(['2026-10-23', '2026-10-21', '2026-10-23', undefined])
+    expect(result.records.map((record) => record.validatedDate)).toEqual(['2026-10-18', '2026-10-21', '2026-10-23', undefined])
     expect(summarizeRecords(result.records, '2026-10-23')).toEqual({
       target: 4, accomplished: 3, today: 1, daily: { '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 },
     })

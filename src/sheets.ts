@@ -315,8 +315,9 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
   }
   const records = snapshot.records.map((record) => {
     if (!record.accomplished) return record
-    const validatedDate = firstSeen[entryKey(record)] ?? today
-    return { ...record, validatedDate, countedDate: record.date ?? validatedDate }
+    // Date Claimed/Account Opened is the validation date; first-seen only fills in rows without one.
+    const validatedDate = record.date ?? firstSeen[entryKey(record)] ?? today
+    return { ...record, validatedDate, countedDate: validatedDate }
   })
   return {
     ...snapshot,
