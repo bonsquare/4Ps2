@@ -86,3 +86,9 @@
 .coverage-box small { color: #5a6b7d; font-size: 11.5px; line-height: 1.4; }
 .report-title .report-coverage { margin-top: 3px; }
 @media print { .report-title .report-coverage { margin-top: 1px; } }
+
+/* Date coverage: From and To stack, so the date fields always sit inside the box */
+.coverage-box { min-width: 0; box-sizing: border-box; }
+.coverage-dates { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.coverage-dates label { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 8px; margin: 0; }
+.coverage-dates input { width: 100%; min-width: 0; box-sizing: border-box; }
