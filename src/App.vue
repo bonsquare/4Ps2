@@ -14,7 +14,9 @@ use([BarChart, LineChart, DataZoomComponent, GridComponent, LegendComponent, Too
 
 // Local-only shortcut: `npm run dev` on localhost skips Google sign-in. import.meta.env.DEV is false in production
 // builds, so this branch is removed from the deployed bundle.
-const devBypass = import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+// ?preview=login|profile|pending|denied lets the sign-in screens be viewed locally.
+const devPreview = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null
+const devBypass = import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname) && devPreview !== 'login'
 
 type Role = 'regional' | 'provincial'
 type View = 'overview' | 'province' | 'reports' | 'approvals'
@@ -474,7 +476,7 @@ onMounted(async () => {
       { id: 'sample-2', email: 'jeff@example.com', fullName: 'Sample Member', position: 'Encoder', province: 'Davao Oriental', status: 'approved', isSuperAdmin: false },
     ]
     currentUser.value = { id: 'local-dev', email: 'dev@localhost', user_metadata: { full_name: 'Local Developer' } } as unknown as User
-    profile.value = { id: 'local-dev', email: 'dev@localhost', fullName: 'Local Developer', position: 'Super Administrator', province: 'Regional Office', status: 'approved', isSuperAdmin: true }
+    if (devPreview !== 'profile') profile.value = { id: 'local-dev', email: 'dev@localhost', fullName: 'Local Developer', position: 'Super Administrator', province: 'Regional Office', status: devPreview === 'pending' || devPreview === 'denied' ? devPreview : 'approved', isSuperAdmin: devPreview === null }
   } else if (auth) {
     try {
       currentUser.value = await auth.getUser()
@@ -512,56 +514,76 @@ onBeforeUnmount(() => {
 <template>
   <main v-if="!loggedIn" class="login-shell">
     <section class="login-panel" aria-labelledby="login-title">
-      <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
-      <p class="eyebrow">Regional Program Management Office</p>
-      <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
-      <p class="login-copy">Secure access to regional and provincial performance dashboards.</p>
-      <div class="sample-notice"><strong>Phase 1 prototype</strong><span>{{ dataConnected ? 'Live Google Sheets data is connected.' : 'Connecting to Google Sheets…' }}</span></div>
-      <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
-      <div class="captcha-block">
-        <div ref="turnstileMount" aria-label="Security verification"></div>
-        <p class="security-note">{{ captchaMessage }}</p>
+      <div class="login-card">
+        <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
+        <p class="eyebrow">Regional Program Management Office</p>
+        <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
+        <p class="login-copy">Sign in to view the regional and provincial performance dashboards.</p>
+        <span class="live-chip" :class="{ on: dataConnected }"><i></i>{{ dataConnected ? 'Live Google Sheets data connected' : 'Connecting to Google Sheets…' }}</span>
+        <div v-if="authError" class="auth-error" role="alert">{{ authError }}</div>
+        <ol class="sign-steps">
+          <li :class="{ done: captchaToken }"><span class="step-num">1</span><div class="step-body"><strong>Security check</strong>
+            <div class="captcha-block"><div ref="turnstileMount" aria-label="Security verification"></div><p class="security-note">{{ captchaMessage }}</p></div></div></li>
+          <li :class="{ ready: captchaToken }"><span class="step-num">2</span><div class="step-body"><strong>Continue with Google</strong>
+            <div v-show="captchaToken && !authBusy" ref="googleButtonMount" class="google-button-mount" aria-label="Continue with Google"></div>
+            <p v-if="!captchaToken" class="security-note">Unlocks once the security check is complete.</p></div></li>
+        </ol>
+        <p class="security-note">Use your Gmail or Google Workspace corporate email.</p>
+        <p v-if="!authConfigured || !googleSignInConfigured || !turnstileConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
       </div>
-      <div v-show="captchaToken && !authBusy" ref="googleButtonMount" class="google-button-mount" aria-label="Continue with Google"></div>
-      <p class="security-note">Use your Gmail or Google Workspace corporate email.</p>
-      <p v-if="!authConfigured || !googleSignInConfigured || !turnstileConfigured" class="setup-note">Administrator setup is required before Google sign-in can be used.</p>
     </section>
     <aside class="login-context" aria-label="System overview">
-      <div><span class="context-kicker">One clear regional view</span><h2>From daily encoding to decisions.</h2><p>Provincial teams keep their existing Google Sheets workflow. Regional leaders get a consolidated, always-current picture.</p></div>
-      <ul><li>Read-only accomplishment data</li><li>Province-scoped access controls</li><li>Print-ready government reports</li></ul>
+      <div class="context-body"><span class="context-kicker">One clear regional view</span><h2>From daily encoding to decisions.</h2><p>Provincial teams keep their existing Google Sheets workflow. Regional leaders get a consolidated, always-current picture.</p></div>
+      <ul class="feature-list">
+        <li class="blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><div><strong>Always current</strong><span>Reads the provincial Google Sheets live, even when a sheet is filtered.</span></div></li>
+        <li class="green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><div><strong>Approved people only</strong><span>Province-scoped access, reviewed by the Super Administrator.</span></div></li>
+        <li class="amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg><div><strong>Print-ready reports</strong><span>Official accomplishment reports in one click.</span></div></li>
+      </ul>
     </aside>
   </main>
 
   <main v-else-if="profileBusy" class="login-shell">
-    <section class="login-panel"><p class="eyebrow">Checking access</p><h1>One moment…</h1><p class="login-copy">We are securely checking your account status.</p></section>
+    <section class="login-panel"><div class="login-card"><p class="eyebrow">Checking access</p><h1>One moment…</h1><p class="login-copy">We are securely checking your account status.</p></div></section>
     <aside class="login-context" aria-label="System overview"></aside>
   </main>
 
   <main v-else-if="appAccess === 'profile'" class="login-shell">
     <section class="login-panel" aria-labelledby="profile-title">
-      <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
-      <p class="eyebrow">First-time sign-in</p>
-      <h1 id="profile-title">Tell us about yourself</h1>
-      <p class="login-copy">Your account will be reviewed by the Super Administrator before dashboard access is granted.</p>
-      <div v-if="profileError" class="auth-error" role="alert">{{ profileError }}</div>
-      <form class="profile-form" @submit.prevent="submitProfile">
-        <label>Full name<input v-model="profileForm.fullName" required autocomplete="name" /></label>
-        <label>Position<input v-model="profileForm.position" required autocomplete="organization-title" /></label>
-        <label>Province<select v-model="profileForm.province" required><option disabled value="">Select your province</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
-        <button class="primary-button" :disabled="profileBusy">{{ profileBusy ? 'Submitting…' : 'Submit for approval' }}</button>
-      </form>
-      <button class="secondary-button" @click="logout">Sign out</button>
+      <div class="login-card">
+        <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
+        <ol class="stepper" aria-label="Registration progress"><li class="done">Sign in</li><li class="current">Your profile</li><li>Approval</li></ol>
+        <p class="eyebrow">First-time sign-in</p>
+        <h1 id="profile-title">Tell us about yourself</h1>
+        <p class="login-copy">Your account will be reviewed by the Super Administrator before dashboard access is granted.</p>
+        <div class="signed-chip"><span class="avatar-mini">{{ (currentUser?.email ?? '?')[0].toUpperCase() }}</span><span>Signed in as <strong>{{ currentUser?.email }}</strong></span></div>
+        <div v-if="profileError" class="auth-error" role="alert">{{ profileError }}</div>
+        <form class="profile-form" @submit.prevent="submitProfile">
+          <label>Full name<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><input v-model="profileForm.fullName" required autocomplete="name" placeholder="e.g. Maria Santos" /></span></label>
+          <label>Position<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg><input v-model="profileForm.position" required autocomplete="organization-title" placeholder="e.g. Provincial Link" /></span></label>
+          <label>Province<span class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><select v-model="profileForm.province" required><option disabled value="">Select your province</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></span></label>
+          <button class="primary-button" :disabled="profileBusy">{{ profileBusy ? 'Submitting…' : 'Submit for approval' }}</button>
+        </form>
+        <button class="link-button" @click="logout">Not you? Sign out</button>
+      </div>
     </section>
-    <aside class="login-context" aria-label="Approval process"><div><span class="context-kicker">Secure access</span><h2>Approved people only.</h2><p>Complete the short profile form. The Super Administrator will review your request in the application.</p></div></aside>
+    <aside class="login-context" aria-label="Approval process">
+      <div class="context-body"><span class="context-kicker">Secure access</span><h2>Approved people only.</h2><p>Complete the short profile form. The Super Administrator will review your request in the application.</p></div>
+      <ol class="timeline">
+        <li class="done"><span>1</span><div><strong>Sign in</strong><small>Your Google account is verified.</small></div></li>
+        <li class="current"><span>2</span><div><strong>Submit your profile</strong><small>Name, position and province.</small></div></li>
+        <li><span>3</span><div><strong>Review</strong><small>The Super Administrator approves your request.</small></div></li>
+        <li><span>4</span><div><strong>Open the dashboard</strong><small>You are signed in automatically once approved.</small></div></li>
+      </ol>
+    </aside>
   </main>
 
   <main v-else-if="appAccess === 'pending'" class="login-shell">
-    <section class="login-panel"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Request received</p><h1>Waiting for approval</h1><p class="login-copy">Your request has been submitted. You will be able to use the dashboard after the Super Administrator approves your account.</p><button class="secondary-button" @click="() => loadProfile()">Check again</button><button class="secondary-button" @click="logout">Sign out</button></section>
+    <section class="login-panel"><div class="login-card"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Request received</p><h1>Waiting for approval</h1><p class="login-copy">Your request has been submitted. You will be able to use the dashboard after the Super Administrator approves your account.</p><button class="secondary-button" @click="() => loadProfile()">Check again</button><button class="secondary-button" @click="logout">Sign out</button></div></section>
     <aside class="login-context" aria-label="Approval process"><div><span class="context-kicker">Secure access</span><h2>Your request is in review.</h2></div></aside>
   </main>
 
   <main v-else-if="appAccess === 'denied'" class="login-shell">
-    <section class="login-panel"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Access unavailable</p><h1>Request not approved</h1><p class="login-copy">This account does not currently have access to the dashboard. Please contact the Regional Program Management Office if you need assistance.</p><button class="secondary-button" @click="logout">Sign out</button></section>
+    <section class="login-panel"><div class="login-card"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Access unavailable</p><h1>Request not approved</h1><p class="login-copy">This account does not currently have access to the dashboard. Please contact the Regional Program Management Office if you need assistance.</p><button class="secondary-button" @click="logout">Sign out</button></div></section>
     <aside class="login-context" aria-label="Access unavailable"></aside>
   </main>
 
