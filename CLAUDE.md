@@ -31,7 +31,7 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 - Never put a Supabase service-role key in the app. Only the public anon key is used.
 - Province/office on a profile is a label only; it does not scope data.
 - Keep user-facing labels in Title Case as in the sidebar and cards (e.g. "Provincial Overview", "Accomplished to Date", "Remaining Target", "Completion Rate", "Completed Today", "Reports & Printing", "Refresh Data"). "Regional Overview", "Regional Target" and "Provincial Performance" are fixed.
-- Login page: picture panel on the left, sign-in on the right (`order: -1` on `.login-context`). The program name "Pantawid Pamilyang Pilipino Program" must stay the largest text on the picture panel.
+- Login page: picture panel on the left, sign-in on the right (`order: -1` on `.login-context`). The picture (`public/login-bg.webp`) is the whole panel background via `.login-context::before`. Do not add blur, fade, tint, gradient or other color layers over it, and keep the text off any solid card. The program name "Pantawid Pamilyang Pilipino Program" must stay the largest text on the picture panel.
 
 ## Local development notes
 

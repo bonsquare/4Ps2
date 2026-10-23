@@ -19,7 +19,7 @@ Live site: https://4-ps2.vercel.app · Repo: https://github.com/bonsquare/4Ps2 (
 
 ## Screens
 
-1. **Login / Register** — picture panel on the left, sign-in card on the right with a **Sign in | Register** switch. Register uses the same Turnstile + Google flow, then the profile form.
+1. **Login / Register** — picture panel on the left, sign-in card on the right with a **Sign in | Register** switch. Register uses the same Turnstile + Google flow, then the profile form. The left panel is one crisp picture (4Ps social worker in a red vest with a mother and child) with no blur, fade or color overlay. Three lines sit on its sky: "Pantawid Pamilyang Pilipino Program" (largest), "Enhanced Support Services Intervention", and "Regional Program Management Office Monitoring" (outlined badge).
 2. **Regional Overview** — Regional Target, Accomplished to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments) and Regional Daily Output charts.
 3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, beneficiary review list with filters, record detail dialog.
 4. **Reports & Printing** — Report Center: target vs. actual and payment-mode reports by region / province / municipality, date coverage, printable (browser print dialog, white background).
