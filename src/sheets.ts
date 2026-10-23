@@ -131,12 +131,22 @@ export function summarizeWorksheet(csv: string) {
   return { target, accomplished, daily }
 }
 
-export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch) {
+// The gviz CSV export drops rows hidden by a sheet filter, so a worker filtering their tab would shrink the counts.
+// The Sheets API values endpoint returns every row regardless of filters; it needs an API key, so gviz stays the fallback.
+async function readWorksheetCsv(tab: string, name: string, fetcher: typeof fetch, apiKey?: string) {
+  const url = apiKey
+    ? `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(`'${tab}'`)}?valueRenderOption=FORMATTED_VALUE&key=${encodeURIComponent(apiKey)}`
+    : `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`
+  const response = await fetcher(url)
+  if (!response.ok) throw new Error(`Unable to read ${name}`)
+  if (!apiKey) return response.text()
+  const { values = [] } = await response.json() as { values?: string[][] }
+  return Papa.unparse(values)
+}
+
+export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch, apiKey?: string) {
   const results = await Promise.all(WORKSHEETS.map(async (worksheet) => {
-    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(worksheet.tab)}`
-    const response = await fetcher(url)
-    if (!response.ok) throw new Error(`Unable to read ${worksheet.name}`)
-    const csv = await response.text()
+    const csv = await readWorksheetCsv(worksheet.tab, worksheet.name, fetcher, apiKey)
     const summary = summarizeWorksheet(csv)
     return { id: worksheet.id, name: worksheet.name, records: extractReviewRecords(csv, worksheet.name), ...summary }
   }))
