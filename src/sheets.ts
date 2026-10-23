@@ -297,15 +297,14 @@ export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch) {
 type Snapshot = Awaited<ReturnType<typeof getAccomplishmentSnapshot>>
 
 export const entryKey = (record: { province: string; id: string }) => `${record.province}|${record.id}`
-export const undatedAccomplished = (snapshot: Snapshot) => snapshot.records.filter((record) => record.accomplished && !record.date)
 export const accomplishedRecords = (snapshot: Snapshot) => snapshot.records.filter((record) => record.accomplished)
 
-// Accomplished rows with no date in the sheet are counted on the day they were first seen (firstSeen),
-// or on `today` when that is not recorded yet, so the daily graph always adds up to the accomplished total.
+// The sheet has no validation date (Column T is the bank account date), so every accomplished row is
+// counted on the day it was first seen (firstSeen), or on `today` when that is not recorded yet.
 export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, string>, today: string): Snapshot {
-  const daily: Record<string, number> = Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value]))
-  const provinces = snapshot.provinces.map((province) => ({ ...province, daily: { ...province.daily } }))
-  for (const record of undatedAccomplished(snapshot)) {
+  const daily: Record<string, number> = {}
+  const provinces = snapshot.provinces.map((province) => ({ ...province, daily: {} as Record<string, number>, today: 0 }))
+  for (const record of accomplishedRecords(snapshot)) {
     const province = provinces.find((item) => item.name === record.province)
     if (!province) continue
     const date = firstSeen[entryKey(record)] ?? today
@@ -315,9 +314,8 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
   }
   const records = snapshot.records.map((record) => {
     if (!record.accomplished) return record
-    // Validation date is when the system first saw the record; the chart still counts by the sheet date.
     const validatedDate = firstSeen[entryKey(record)] ?? today
-    return { ...record, validatedDate, countedDate: record.date ?? validatedDate }
+    return { ...record, validatedDate, countedDate: validatedDate }
   })
   return {
     ...snapshot,

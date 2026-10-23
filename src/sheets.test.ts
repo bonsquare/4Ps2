@@ -187,24 +187,22 @@ describe('applyFirstSeen', () => {
     ],
   } as unknown as Parameters<typeof applyFirstSeen>[0]
 
-  it('counts undated accomplished rows on their first-seen day, or today when unknown, so the graph adds up', () => {
+  it('counts every accomplished row on its first-seen day, or today when unknown, ignoring the sheet date', () => {
     const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
 
-    expect(result.daily).toEqual([
-      { date: '2026-10-18', value: 1 }, { date: '2026-10-21', value: 1 }, { date: '2026-10-23', value: 1 },
-    ])
-    expect(result.provinces[0].daily).toEqual({ '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 })
-    expect(result.provinces[0].today).toBe(1)
+    expect(result.daily).toEqual([{ date: '2026-10-21', value: 1 }, { date: '2026-10-23', value: 2 }])
+    expect(result.provinces[0].daily).toEqual({ '2026-10-21': 1, '2026-10-23': 2 })
+    expect(result.provinces[0].today).toBe(2)
     expect(result.daily.reduce((sum, item) => sum + item.value, 0)).toBe(3)
   })
 
   it('stamps each accomplished record with the day it is counted on, and summarizes any slice of records', () => {
     const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
 
-    expect(result.records.map((record) => record.countedDate)).toEqual(['2026-10-18', '2026-10-21', '2026-10-23', undefined])
+    expect(result.records.map((record) => record.countedDate)).toEqual(['2026-10-23', '2026-10-21', '2026-10-23', undefined])
     expect(result.records.map((record) => record.validatedDate)).toEqual(['2026-10-23', '2026-10-21', '2026-10-23', undefined])
     expect(summarizeRecords(result.records, '2026-10-23')).toEqual({
-      target: 4, accomplished: 3, today: 1, daily: { '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 },
+      target: 4, accomplished: 3, today: 2, daily: { '2026-10-21': 1, '2026-10-23': 2 },
     })
   })
 })
