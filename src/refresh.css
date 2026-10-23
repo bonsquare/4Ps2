@@ -110,3 +110,13 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .brand { min-width: 0; }
 .brand strong { display: block; max-width: min(34vw, 420px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 760px) { .brand strong { max-width: 44vw; } }
+
+/* Account menu (replaces the sidebar sign-in card and log out button) */
+.account { position: relative; }
+.account-menu { position: absolute; right: 0; top: calc(100% + 10px); width: 280px; padding: 8px; border: 1px solid var(--hair); border-radius: 18px; background: rgba(255, 255, 255, .98); box-shadow: var(--shadow-2); transform-origin: top right; animation: pop .22s var(--ease); }
+.account-id { display: grid; gap: 3px; padding: 12px 12px 14px; margin-bottom: 6px; border-bottom: 1px solid var(--hair); }
+.account-id strong { font-size: 15px; letter-spacing: -.01em; color: var(--ink); overflow-wrap: anywhere; }
+.account-id span { font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+.account-logout { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; color: #a63a3a; font-weight: 650; text-align: left; }
+.account-logout:hover { background: rgba(166, 58, 58, .08); }
+.avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(18, 128, 95, .25); }

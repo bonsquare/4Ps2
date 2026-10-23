@@ -49,6 +49,12 @@ const activeView = ref<View>('overview')
 const selectedProvinceId = ref('sur')
 const period = ref('This week')
 const menuOpen = ref(false)
+const accountMenuOpen = ref(false)
+const accountName = computed(() => profile.value?.fullName || String(currentUser.value?.user_metadata?.full_name ?? '') || currentUser.value?.email?.split('@')[0] || 'Account')
+const accountInitials = computed(() => accountName.value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase())
+function closeAccountMenu(event: Event) {
+  if (event instanceof KeyboardEvent ? event.key === 'Escape' : !(event.target as Element | null)?.closest('.account')) accountMenuOpen.value = false
+}
 const refreshing = ref(false)
 const now = ref(new Date())
 const clockDate = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(now.value))
@@ -348,6 +354,8 @@ watch([selectedProvinceId, reviewProvinceId, reviewQuery, reviewStatus], () => {
 watch(reviewTotalPages, (totalPages) => { if (reviewPage.value > totalPages) reviewPage.value = totalPages })
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
+  document.addEventListener('click', closeAccountMenu)
+  document.addEventListener('keydown', closeAccountMenu)
   clockTimer = window.setInterval(() => { now.value = new Date() }, 1000)
   loadGoogleSheets()
   if (auth) {
@@ -374,6 +382,8 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('click', closeAccountMenu)
+  document.removeEventListener('keydown', closeAccountMenu)
   if (refreshTimer) window.clearInterval(refreshTimer)
   window.clearInterval(clockTimer)
   unsubscribeAuth?.()
@@ -441,17 +451,15 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
       <div class="brand"><div class="mini-seal">XI</div><div><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Operations Office</span></div></div>
-      <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><button class="avatar" aria-label="Open account menu">{{ role === 'regional' ? 'RA' : 'DS' }}</button></div>
+      <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><div class="account"><button class="avatar" aria-label="Open account menu" aria-haspopup="menu" :aria-expanded="accountMenuOpen" @click="accountMenuOpen = !accountMenuOpen">{{ accountInitials || (role === 'regional' ? 'RA' : 'DS') }}</button><div v-if="accountMenuOpen" class="account-menu" role="menu"><div class="account-id"><strong>{{ accountName }}</strong><span>{{ currentUser?.email ?? 'Google account' }}</span></div><button class="account-logout" role="menuitem" @click="accountMenuOpen = false; logout()"><i>↪</i>Log out</button></div></div></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
-      <div class="role-card"><span>Signed in as</span><strong>{{ currentUser?.email ?? 'Google account' }}</strong></div>
       <nav aria-label="Main navigation">
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
         <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>✓</i>Approvals</button>
       </nav>
-      <button class="logout" @click="logout"><i>↪</i>Log out</button>
     </aside>
 
     <main class="content">
