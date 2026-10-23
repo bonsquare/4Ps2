@@ -6,7 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { beneficiaryDetails, educationDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalDetails, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -50,6 +50,7 @@ const selectedProvinceId = ref('sur')
 const period = ref('This week')
 const menuOpen = ref(false)
 const accountMenuOpen = ref(false)
+const isUrl = (value: string) => /^https?:\/\//i.test(value)
 const accountName = computed(() => profile.value?.fullName || String(currentUser.value?.user_metadata?.full_name ?? '') || currentUser.value?.email?.split('@')[0] || 'Account')
 const accountInitials = computed(() => accountName.value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase())
 function closeAccountMenu(event: Event) {
@@ -495,28 +496,30 @@ onBeforeUnmount(() => {
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
             <label>Province<select v-if="!isProvinceView" v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select><input v-else :value="selectedProvince.name" readonly aria-label="Selected province" /></label>
-            <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated – For Review</option><option value="pending">For Validation</option></select></label>
+            <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated</option><option value="pending">For Validation</option></select></label>
             <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
           </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
-          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ record.accomplished ? 'Validated – For Review' : 'For Validation' }}</span></td></tr></tbody></table></div>
+          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
         </section>
         <div v-if="selectedReviewRecord" class="detail-backdrop" role="presentation" @click.self="selectedReviewRecord = null">
           <section class="beneficiary-dialog" role="dialog" aria-modal="true" aria-labelledby="beneficiary-detail-title">
-            <header><div><p class="eyebrow">Beneficiary record</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
+            <header><div><p class="eyebrow">Beneficiary record</p><h2 id="beneficiary-detail-title">{{ selectedReviewRecord.name || 'Beneficiary record' }}</h2><span class="review-status" :class="{ complete: selectedReviewRecord.accomplished }">{{ statusLabel(selectedReviewRecord) }}</span></div><button class="dialog-close" aria-label="Close beneficiary details" @click="selectedReviewRecord = null">×</button></header>
             <div class="detail-columns">
             <div>
-              <h3 class="dialog-section">Beneficiary details</h3>
-              <dl><template v-for="[label, value] in beneficiaryDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
-              <h3 class="dialog-section">Contact and personal information</h3>
-              <dl><template v-for="[label, value] in personalDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+              <h3 class="dialog-section">Personal information</h3>
+              <dl><template v-for="[label, value] in personalInfo(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd><a v-if="isUrl(value)" :href="value" target="_blank" rel="noopener noreferrer">Open link</a><template v-else>{{ value }}</template></dd></template></dl>
+              <h3 class="dialog-section">Contact details</h3>
+              <dl><template v-for="[label, value] in contactDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd><a v-if="isUrl(value)" :href="value" target="_blank" rel="noopener noreferrer">Open link</a><template v-else>{{ value }}</template></dd></template></dl>
             </div>
             <div>
-              <h3 class="dialog-section">Mode of payment</h3>
-              <dl><template v-for="[label, value] in paymentDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
-              <h3 class="dialog-section">Household member and school</h3>
-              <dl><template v-for="[label, value] in educationDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></template></dl>
+              <h3 class="dialog-section">School</h3>
+              <dl><template v-for="[label, value] in schoolDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd><a v-if="isUrl(value)" :href="value" target="_blank" rel="noopener noreferrer">Open link</a><template v-else>{{ value }}</template></dd></template></dl>
+              <h3 class="dialog-section">Payment</h3>
+              <dl><template v-for="[label, value] in paymentDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd><a v-if="isUrl(value)" :href="value" target="_blank" rel="noopener noreferrer">Open link</a><template v-else>{{ value }}</template></dd></template></dl>
+              <h3 class="dialog-section">Remarks</h3>
+              <dl><template v-for="[label, value] in remarksDetails(selectedReviewRecord)" :key="label"><dt>{{ label }}</dt><dd><a v-if="isUrl(value)" :href="value" target="_blank" rel="noopener noreferrer">Open link</a><template v-else>{{ value }}</template></dd></template></dl>
             </div>
             </div>
             <button class="primary-button compact" @click="selectedReviewRecord = null">Close</button>

@@ -74,58 +74,64 @@ export function filterRecordsByProvince<T extends { province: string }>(records:
   return province ? records.filter((record) => record.province === province) : records
 }
 
-export function beneficiaryDetails(record: ReviewRecord): Array<[string, string]> {
-  const value = (input: string | null) => input || '—'
+const dash = (input: string | null) => input || '—'
+
+export function personalInfo(record: ReviewRecord): Array<[string, string]> {
+  const { personal, education } = record
   return [
-    ['Entry ID', record.id],
-    ['Province', record.province],
-    ['Municipality', value(record.municipality)],
-    ['Barangay', value(record.barangay)],
-    ['Household ID', value(record.householdId)],
-    ['Account number', value(record.accountNumber)],
-    ['Status', record.accomplished ? 'Validated – For Review' : 'For Validation'],
+    ['Entry ID', dash(record.id)],
+    ['Household ID', dash(record.householdId)],
+    ['Household member', dash(education.member)],
+    ['Sex', dash(personal.sex)],
+    ['Birthday', dash(personal.birthday)],
+    ['PWD', dash(personal.pwd)],
+    ['Solo parent dependent', dash(personal.soloParent)],
+    ['Indigenous person', dash(personal.indigenous)],
+    ['First-generation college student', dash(personal.firstGen)],
+  ]
+}
+
+export function contactDetails(record: ReviewRecord): Array<[string, string]> {
+  return [
+    ['Province', dash(record.province)],
+    ['Municipality', dash(record.municipality)],
+    ['Barangay', dash(record.barangay)],
+    ['Contact number', dash(record.personal.contact)],
+    ['Email', dash(record.personal.email)],
+  ]
+}
+
+export function schoolDetails(record: ReviewRecord): Array<[string, string]> {
+  const { education } = record
+  return [
+    ['School (HEI)', dash(education.hei)],
+    ['HEI type', dash(education.heiType)],
+    ['Degree program', dash(education.degree)],
+    ['Year level', dash(education.yearLevel)],
+    ['Academic year', dash(education.academicYear)],
   ]
 }
 
 export function paymentDetails(record: ReviewRecord): Array<[string, string]> {
-  const value = (input: string | null) => input || '—'
   const { payment } = record
   return [
-    ['Servicing branch', value(payment.servicingBranch)],
-    ['Date requested', value(payment.dateRequested)],
-    ['Mode of payment', value(record.paymentMode)],
-    ['Date claimed / account opened', value(payment.dateClaimed)],
-    ['Control no.', value(payment.controlNo)],
-    ['Snapshot', value(payment.snapshot)],
-    ['Account number 2', value(payment.accountNumber2)],
-    ['MRB/PRB remarks', value(payment.remarks)],
+    ['Mode of payment', dash(record.paymentMode)],
+    ['Servicing branch', dash(payment.servicingBranch)],
+    ['Date requested', dash(payment.dateRequested)],
+    ['Date claimed / account opened', dash(payment.dateClaimed)],
+    ['Control no.', dash(payment.controlNo)],
+    ['Account number', dash(record.accountNumber)],
+    ['Account number 2', dash(payment.accountNumber2)],
+    ['Snapshot', dash(payment.snapshot)],
   ]
 }
 
-export function personalDetails(record: ReviewRecord): Array<[string, string]> {
-  const { personal } = record
-  return [
-    ['Sex', personal.sex || '—'],
-    ['Birthday', personal.birthday || '—'],
-    ['Contact number', personal.contact || '—'],
-    ['Email', personal.email || '—'],
-    ['PWD', personal.pwd || '—'],
-    ['Solo parent dependent', personal.soloParent || '—'],
-    ['Indigenous person', personal.indigenous || '—'],
-    ['First-generation college student', personal.firstGen || '—'],
-  ]
+export function remarksDetails(record: ReviewRecord): Array<[string, string]> {
+  return [['MRB/PRB remarks', dash(record.payment.remarks)]]
 }
 
-export function educationDetails(record: ReviewRecord): Array<[string, string]> {
-  const { education } = record
-  return [
-    ['Household member', education.member || '—'],
-    ['School (HEI)', education.hei || '—'],
-    ['HEI type', education.heiType || '—'],
-    ['Degree program', education.degree || '—'],
-    ['Year level', education.yearLevel || '—'],
-    ['Academic year', education.academicYear || '—'],
-  ]
+export function statusLabel(record: ReviewRecord) {
+  return record.accomplished ? 'Validated' : 'For Validation'
 }
 
 function normalizeDate(value: string) {

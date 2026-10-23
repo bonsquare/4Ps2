@@ -131,3 +131,6 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .detail-columns > div > .dialog-section:first-child { margin-top: 18px; }
 .detail-columns dl { margin: 12px 0 0; grid-template-columns: minmax(130px, .9fr) 1.3fr; }
 @media (max-width: 760px) { .detail-columns { grid-template-columns: 1fr; } }
+
+.beneficiary-dialog header .review-status { margin-top: 10px; }
+.detail-columns dd a { color: var(--blue); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
