@@ -37,6 +37,11 @@ export default async function handler(request: ServerRequest, response: ServerRe
     }
     response.status(200).json(cached.snapshot)
   } catch (error) {
+    // Google hiccup: serve the last good snapshot rather than blanking the dashboard.
+    if (cached) {
+      response.status(200).json(cached.snapshot)
+      return
+    }
     response.status(502).json({ error: error instanceof Error ? error.message : 'Unable to read Google Sheets' })
   }
 }

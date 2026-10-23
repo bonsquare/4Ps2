@@ -324,7 +324,10 @@ async function loadGoogleSheets(force = false) {
     const session = authClient ? (await authClient.auth.getSession()).data.session : null
     if (!session) return // the data is private; it loads once the user is signed in and approved
     const response = await fetch(force ? '/sheet-data?fresh=1' : '/sheet-data', { headers: { Authorization: `Bearer ${session.access_token}` } })
-    if (!response.ok) throw new Error('Google Sheets returned an error')
+    if (!response.ok) {
+      const detail = await response.json().then((body: { error?: string }) => body.error, () => undefined)
+      throw new Error(detail ?? 'Google Sheets returned an error')
+    }
     const snapshot = await response.json() as {
       provinces: Province[]
       daily: Array<{ date: string; value: number }>
