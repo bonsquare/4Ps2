@@ -771,7 +771,7 @@ onBeforeUnmount(() => {
             <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
           </aside>
           <article class="report-paper" :class="reportDensity">
-            <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>4Ps Enhanced Support Services Intervention · Davao Region</span></div></header>
+            <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Department of Social Welfare and Development</small><strong>Pantawid Pamilyang Pilipino Program</strong><span>Enhanced Support Services Intervention</span><small class="office-line">Regional Program Management Office · Davao Region</small></div></header>
             <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }} · As of {{ reportStamp }}</p></div>
 
             <template v-if="reportType === 'target'">

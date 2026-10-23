@@ -70,3 +70,6 @@
 }
 
 .report-hint.soft { background: rgba(99, 102, 241, .1); color: #3730a3; font-weight: 500; }
+
+.report-paper header .office-line { font-family: inherit; font-size: 11px; color: #5a6b7d; }
+.report-paper header strong { text-transform: none; font-size: 18px; letter-spacing: .02em; }
