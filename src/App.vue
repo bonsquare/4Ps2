@@ -74,6 +74,15 @@ function zoomFor(count: number) {
     { type: 'inside', xAxisIndex: 0, ...window, filterMode: 'none', zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
   ] }
 }
+// One colour per province, reused by the bars and the province line so each stays recognisable.
+const provinceColors: Record<string, string> = { oriental: '#2563eb', oro: '#f59e0b', norte: '#8b5cf6', city: '#ec4899', sur: '#10b981', occidental: '#06b6d4' }
+const colorOf = (id: string) => provinceColors[id] ?? '#2563eb'
+const fade = (hex: string, alpha: string) => `${hex}${alpha}`
+// Opaque blend of a #rrggbb colour toward another (e.g. white to lighten, black to deepen); amount 0..1.
+function mix(hex: string, toward: string, amount: number) {
+  const channel = (value: string, index: number) => parseInt(value.slice(1 + index * 2, 3 + index * 2), 16)
+  return `#${[0, 1, 2].map((index) => Math.round(channel(hex, index) + (channel(toward, index) - channel(hex, index)) * amount).toString(16).padStart(2, '0')).join('')}`
+}
 const completionOf = (item: { target: number; accomplished: number }) => item.target ? Math.round(item.accomplished / item.target * 1000) / 10 : 0
 
 const currentUser = ref<User | null>(null)
@@ -364,8 +373,8 @@ function makeCharts() {
       yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{
         name: 'Province accomplishments', type: 'line', data: series.map((d) => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
-        lineStyle: { width: 3, color: '#17795f' }, itemStyle: { color: '#17795f', borderColor: '#fff', borderWidth: 2 },
-        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(23,121,95,.28)' }, { offset: 1, color: 'rgba(23,121,95,0)' }] } },
+        lineStyle: { width: 3, color: colorOf(p.id) }, itemStyle: { color: colorOf(p.id), borderColor: '#fff', borderWidth: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: fade(colorOf(p.id), '55') }, { offset: 1, color: fade(colorOf(p.id), '00') }] } },
         label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 },
       }],
     })
@@ -374,9 +383,9 @@ function makeCharts() {
       xAxis: { type: 'category', data: ['Target', 'Accomplished', 'Remaining'], axisLabel: text },
       yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{ type: 'bar', barWidth: '42%', data: [
-        { value: displayMetrics.value.target, itemStyle: { color: '#1d5b91' } },
-        { value: displayMetrics.value.accomplished, itemStyle: { color: '#17795f' } },
-        { value: displayMetrics.value.remaining, itemStyle: { color: '#d29b2d' } },
+        { value: displayMetrics.value.target, itemStyle: { color: '#3b82f6', borderRadius: [6, 6, 0, 0] } },
+        { value: displayMetrics.value.accomplished, itemStyle: { color: '#10b981', borderRadius: [6, 6, 0, 0] } },
+        { value: displayMetrics.value.remaining, itemStyle: { color: '#f59e0b', borderRadius: [6, 6, 0, 0] } },
       ], label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } }],
     })
   } else {
@@ -391,9 +400,9 @@ function makeCharts() {
       },
       yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [
-        { name: 'Target', type: 'bar', barGap: '12%', barMaxWidth: 34, data: provinces.map((p) => p.target), itemStyle: { color: '#b8c8d8', borderRadius: [6, 6, 0, 0] },
+        { name: 'Target', type: 'bar', barGap: '12%', barMaxWidth: 34, data: provinces.map((p) => ({ value: p.target, itemStyle: { color: mix(colorOf(p.id), '#ffffff', 0.4), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#93a8d8', borderRadius: [6, 6, 0, 0] },
           label: { show: true, position: 'top', color: '#5b6f84', fontWeight: 700, formatter: (item: { value: unknown }) => number.format(Number(item.value)) } },
-        { name: 'Actual', type: 'bar', barMaxWidth: 34, data: provinces.map((p) => p.accomplished), itemStyle: { color: '#17795f', borderRadius: [6, 6, 0, 0] },
+        { name: 'Actual', type: 'bar', barMaxWidth: 34, data: provinces.map((p) => ({ value: p.accomplished, itemStyle: { color: mix(colorOf(p.id), '#000000', 0.22), borderRadius: [6, 6, 0, 0] } })), itemStyle: { color: '#0f7a58', borderRadius: [6, 6, 0, 0] },
           label: { show: true, position: 'top', color: '#0f5f49', fontWeight: 800, formatter: (item: { value: unknown; dataIndex: number }) => number.format(Number(item.value)) + '\n' + completionOf(provinces[item.dataIndex]) + '%' } },
       ],
     })
@@ -403,8 +412,8 @@ function makeCharts() {
       xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } }, yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{
         name: 'Region accomplishments', type: 'line', data: daily.value.map(d => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
-        lineStyle: { width: 3, color: '#1d5b91' }, itemStyle: { color: '#1d5b91', borderColor: '#fff', borderWidth: 2 },
-        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(29,91,145,.28)' }, { offset: 1, color: 'rgba(29,91,145,0)' }] } },
+        lineStyle: { width: 3.5, color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#2563eb' }, { offset: 1, color: '#8b5cf6' }] } }, itemStyle: { color: '#7c3aed', borderColor: '#fff', borderWidth: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(124,58,237,.30)' }, { offset: 1, color: 'rgba(37,99,235,0)' }] } },
         label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 },
       }],
     })
@@ -503,7 +512,7 @@ onBeforeUnmount(() => {
 <template>
   <main v-if="!loggedIn" class="login-shell">
     <section class="login-panel" aria-labelledby="login-title">
-      <div class="seal" aria-hidden="true">XI</div>
+      <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
       <p class="eyebrow">Regional Program Management Office</p>
       <h1 id="login-title">4Ps Enhanced Support Services Intervention</h1>
       <p class="login-copy">Secure access to regional and provincial performance dashboards.</p>
@@ -530,7 +539,7 @@ onBeforeUnmount(() => {
 
   <main v-else-if="appAccess === 'profile'" class="login-shell">
     <section class="login-panel" aria-labelledby="profile-title">
-      <div class="seal" aria-hidden="true">XI</div>
+      <img class="seal" src="/logo.png" alt="" aria-hidden="true" />
       <p class="eyebrow">First-time sign-in</p>
       <h1 id="profile-title">Tell us about yourself</h1>
       <p class="login-copy">Your account will be reviewed by the Super Administrator before dashboard access is granted.</p>
@@ -547,19 +556,19 @@ onBeforeUnmount(() => {
   </main>
 
   <main v-else-if="appAccess === 'pending'" class="login-shell">
-    <section class="login-panel"><div class="seal" aria-hidden="true">XI</div><p class="eyebrow">Request received</p><h1>Waiting for approval</h1><p class="login-copy">Your request has been submitted. You will be able to use the dashboard after the Super Administrator approves your account.</p><button class="secondary-button" @click="() => loadProfile()">Check again</button><button class="secondary-button" @click="logout">Sign out</button></section>
+    <section class="login-panel"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Request received</p><h1>Waiting for approval</h1><p class="login-copy">Your request has been submitted. You will be able to use the dashboard after the Super Administrator approves your account.</p><button class="secondary-button" @click="() => loadProfile()">Check again</button><button class="secondary-button" @click="logout">Sign out</button></section>
     <aside class="login-context" aria-label="Approval process"><div><span class="context-kicker">Secure access</span><h2>Your request is in review.</h2></div></aside>
   </main>
 
   <main v-else-if="appAccess === 'denied'" class="login-shell">
-    <section class="login-panel"><div class="seal" aria-hidden="true">XI</div><p class="eyebrow">Access unavailable</p><h1>Request not approved</h1><p class="login-copy">This account does not currently have access to the dashboard. Please contact the Regional Program Management Office if you need assistance.</p><button class="secondary-button" @click="logout">Sign out</button></section>
+    <section class="login-panel"><img class="seal" src="/logo.png" alt="" aria-hidden="true" /><p class="eyebrow">Access unavailable</p><h1>Request not approved</h1><p class="login-copy">This account does not currently have access to the dashboard. Please contact the Regional Program Management Office if you need assistance.</p><button class="secondary-button" @click="logout">Sign out</button></section>
     <aside class="login-context" aria-label="Access unavailable"></aside>
   </main>
 
   <div v-else class="app-shell">
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
-      <div class="brand"><div class="mini-seal">XI</div><div><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Program Management Office</span></div></div>
+      <div class="brand"><img class="mini-seal" src="/logo.png" alt="4Ps logo" /><div><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Program Management Office</span></div></div>
       <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><div class="account"><button class="avatar" aria-label="Open account menu" aria-haspopup="menu" :aria-expanded="accountMenuOpen" @click="accountMenuOpen = !accountMenuOpen">{{ accountInitials || (role === 'regional' ? 'RA' : 'DS') }}</button><div v-if="accountMenuOpen" class="account-menu" role="menu"><div class="account-id"><strong>{{ accountName }}</strong><span>{{ currentUser?.email ?? 'Google account' }}</span></div><button class="account-logout" role="menuitem" @click="accountMenuOpen = false; logout()"><i>↪</i>Log out</button></div></div></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
@@ -636,7 +645,7 @@ onBeforeUnmount(() => {
         <section class="report-layout">
           <aside class="report-controls card"><h2>Report settings</h2><label>Report type<select><option>Accomplishment Summary</option><option>Target vs. Actual</option><option>Daily Accomplishment</option></select></label><label v-if="role === 'regional'">Reporting scope<select><option>Regional – All provinces</option><option v-for="item in provinces" :key="item.id">{{ item.name }}</option></select></label><label>Paper size<select><option>A4</option><option>Legal</option></select></label><label>Orientation<select><option>Portrait</option><option>Landscape</option></select></label><div class="sample-notice"><strong>Preview mode</strong><span>Uses sample data in Phase 1.</span></div></aside>
           <article class="report-paper">
-            <header><div class="report-seal">XI</div><div><small>Republic of the Philippines</small><strong>REGIONAL OPERATIONS OFFICE</strong><span>Davao Region</span></div></header>
+            <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Republic of the Philippines</small><strong>REGIONAL PROGRAM MANAGEMENT OFFICE</strong><span>Davao Region</span></div></header>
             <div class="report-title"><h2>{{ role === 'regional' ? 'REGIONAL ACCOMPLISHMENT SUMMARY' : 'PROVINCIAL ACCOMPLISHMENT SUMMARY' }}</h2><p>Reporting Period: October 16–22, 2026</p></div>
             <table><thead><tr><th>Province</th><th>Target</th><th>Actual</th><th>Remaining</th><th>%</th></tr></thead><tbody><tr v-for="item in (role === 'regional' ? provinces : [selectedProvince])" :key="item.id"><td>{{ item.name }}</td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target-item.accomplished) : '—' }}</td><td>{{ item.target ? `${Math.round(item.accomplished/item.target*100)}%` : '—' }}</td></tr></tbody></table>
             <div class="report-total"><span>Total accomplished</span><strong>{{ number.format(displayMetrics.accomplished) }}</strong><span>Completion</span><strong>{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong></div>
