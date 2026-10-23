@@ -139,6 +139,19 @@ const clockDate = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'A
 const clockTime = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(now.value))
 let clockTimer: number | undefined
 const lastRefresh = ref('Oct 22, 2026 · 10:48 PM')
+const lastSyncAt = ref<number | null>(null)
+let sheetEtag: string | null = null
+const updateAvailable = ref(false)
+const syncLabel = computed(() => {
+  if (lastSyncAt.value === null) return ''
+  const seconds = Math.max(0, Math.round((now.value.getTime() - lastSyncAt.value) / 1000))
+  return seconds < 5 ? 'Updated just now' : seconds < 60 ? `Updated ${seconds}s ago` : `Updated ${Math.floor(seconds / 60)}m ago`
+})
+function markSynced() {
+  lastSyncAt.value = Date.now()
+  dataConnected.value = true
+  dataError.value = ''
+}
 const dataConnected = ref(false)
 const dataError = ref('')
 const reviewRecords = ref<ReviewRecord[]>([])
@@ -482,6 +495,29 @@ async function refreshData() {
   refreshing.value = false
 }
 
+// A new deploy renames the hashed bundle in index.html. Offer the update instead of needing a manual hard refresh.
+const loadedBundle = () => document.querySelector('script[type="module"][src*="/assets/index-"]')?.getAttribute('src') ?? null
+async function checkForNewVersion() {
+  const current = loadedBundle()
+  if (!current || updateAvailable.value) return // the dev server has no hashed bundle
+  try {
+    const html = await (await fetch('/', { cache: 'no-store' })).text()
+    const latest = html.match(/\/assets\/index-[^"']+\.js/)?.[0]
+    if (latest && latest !== current) updateAvailable.value = true
+  } catch {
+    // offline: try again on the next check
+  }
+}
+const reloadApp = () => window.location.reload()
+// Background tabs do not poll; the moment the tab is visible again everything catches up at once.
+function onVisibilityChange() {
+  if (document.hidden || !loggedIn.value) return
+  loadGoogleSheets()
+  loadConcerns()
+  if (superAdmin.value) loadProfiles(true)
+  checkForNewVersion()
+}
+
 async function refreshDataInBackground() {
   await loadGoogleSheets()
 }
@@ -575,6 +611,9 @@ async function loadGoogleSheets(force = false) {
       const detail = await response.json().then((body: { error?: string }) => body.error, () => undefined)
       throw new Error(detail ?? 'Google Sheets returned an error')
     }
+    // Nothing new since the last poll (the server answers 304 and the browser replays its copy): skip the parse and redraw.
+    const etag = response.headers.get('ETag')
+    if (etag && etag === sheetEtag) { markSynced(); return }
     const snapshot = await response.json() as {
       provinces: Province[]
       daily: Array<{ date: string; value: number }>
@@ -587,9 +626,9 @@ async function loadGoogleSheets(force = false) {
     daily.value = dailySeries(dailyMap.value)
     lastRefresh.value = new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-    }).format(new Date(snapshot.lastRefresh))
-    dataConnected.value = true
-    dataError.value = ''
+    }).format(new Date())
+    sheetEtag = etag
+    markSynced()
     await nextTick()
     makeCharts()
   } catch (error) {
@@ -638,16 +677,22 @@ onMounted(async () => {
   authBusy.value = false
   await nextTick()
   if (!devBypass && authConfigured && googleSignInConfigured && turnstileConfigured) await setupLoginSecurity()
+  let tick = 0
   refreshTimer = window.setInterval(() => {
+    if (document.hidden) return
+    tick += 1
     if (loggedIn.value) refreshDataInBackground()
     if (superAdmin.value) loadProfiles(true)
     if (loggedIn.value) loadConcerns()
+    if (tick % 4 === 0) checkForNewVersion()
   }, 15_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('click', closeAccountMenu)
   document.removeEventListener('keydown', closeAccountMenu)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   if (refreshTimer) window.clearInterval(refreshTimer)
   window.clearInterval(clockTimer)
   unsubscribeAuth?.()
@@ -735,7 +780,7 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <button class="icon-button mobile-only" aria-label="Open navigation" @click="menuOpen = !menuOpen"><span></span><span></span><span></span></button>
       <div class="brand"><img class="mini-seal" src="/logo.png" alt="4Ps logo" /><div><small class="brand-kicker">Pantawid Pamilyang Pilipino Program</small><strong>4Ps Enhanced Support Services Intervention</strong><span>Regional Program Management Office</span></div></div>
-      <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}</span><div class="account"><button class="avatar" aria-label="Open account menu" aria-haspopup="menu" :aria-expanded="accountMenuOpen" @click="accountMenuOpen = !accountMenuOpen">{{ accountInitials || (role === 'regional' ? 'RA' : 'DS') }}</button><div v-if="accountMenuOpen" class="account-menu" role="menu"><div class="account-id"><strong>{{ accountName }}</strong><span>{{ currentUser?.email ?? 'Google account' }}</span></div><button class="account-logout" role="menuitem" @click="accountMenuOpen = false; logout()"><i>↪</i>Log out</button></div></div></div>
+      <div class="topbar-actions"><div class="clock" aria-label="Current date and time"><strong>{{ clockTime }}</strong><span>{{ clockDate }}</span></div><span class="sample-pill" :class="{ live: dataConnected }">{{ dataConnected ? 'Live Google Sheets' : 'Connecting…' }}<small v-if="dataConnected && syncLabel" class="sync-label">{{ syncLabel }}</small></span><div class="account"><button class="avatar" aria-label="Open account menu" aria-haspopup="menu" :aria-expanded="accountMenuOpen" @click="accountMenuOpen = !accountMenuOpen">{{ accountInitials || (role === 'regional' ? 'RA' : 'DS') }}</button><div v-if="accountMenuOpen" class="account-menu" role="menu"><div class="account-id"><strong>{{ accountName }}</strong><span>{{ currentUser?.email ?? 'Google account' }}</span></div><button class="account-logout" role="menuitem" @click="accountMenuOpen = false; logout()"><i>↪</i>Log out</button></div></div></div>
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
       <nav aria-label="Main navigation">
@@ -904,5 +949,10 @@ onBeforeUnmount(() => {
         <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div></section>
       </template>
     </main>
+    <div v-if="updateAvailable" class="update-toast" role="status" aria-live="polite">
+      <span>A new version of the dashboard is ready.</span>
+      <button class="update-now" @click="reloadApp">Update now</button>
+      <button class="update-later" @click="updateAvailable = false">Later</button>
+    </div>
   </div>
 </template>
