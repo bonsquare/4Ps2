@@ -371,6 +371,8 @@ const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
 const reportProvince = ref('')
 const reportMunicipality = ref('')
 const reportNames = ref<'none' | 'validated' | 'all'>('none')
+const coverageFrom = ref('')
+const coverageTo = ref('')
 watch(role, (value) => { if (value === 'provincial' && reportLevel.value === 'regional') reportLevel.value = 'provincial' }, { immediate: true })
 const reportProvinceName = computed(() => role.value === 'provincial' ? selectedProvince.value?.name : (reportProvince.value || provinces[0]?.name))
 const reportMunicipalities = computed(() => [...new Set(filterRecordsByProvince(reviewRecords.value, reportProvinceName.value).map((record) => record.municipality).filter(Boolean))].sort())
@@ -380,19 +382,31 @@ const reportScope = computed<ReportScope>(() => {
   if (reportLevel.value === 'provincial') return { province: reportProvinceName.value }
   return { province: reportProvinceName.value, municipality: reportMunicipalityName.value }
 })
-const report = computed(() => buildReport(reviewRecords.value, reportScope.value))
+const coverage = computed(() => ({ from: coverageFrom.value, to: coverageTo.value }))
+const report = computed(() => buildReport(reviewRecords.value, reportScope.value, coverage.value))
 // Taller reports print with tighter rows so they still fit one folio sheet where possible.
 const reportDensity = computed(() => {
   const rows = report.value.rows.length + (reportType.value === 'payment' ? report.value.modeShare.length + report.value.rows.length : 0)
   return rows > 20 ? 'tight' : rows > 11 ? 'dense' : ''
 })
-const reportList = computed(() => reportNames.value === 'none' ? [] : beneficiaryList(reviewRecords.value, reportScope.value, reportNames.value))
+const reportList = computed(() => reportNames.value === 'none' ? [] : beneficiaryList(reviewRecords.value, reportScope.value, reportNames.value, coverage.value))
 const reportHeading = computed(() => `${report.value.level.toUpperCase()} ${reportType.value === 'target' ? 'TARGET VS. ACTUAL ACCOMPLISHMENT REPORT' : 'PAYMENT MODE BREAKDOWN REPORT'}`)
 const reportScopeText = computed(() => reportLevel.value === 'regional'
   ? 'Davao Region · All provinces'
   : reportLevel.value === 'provincial'
     ? `Province of ${reportProvinceName.value}`
     : `Municipality of ${reportMunicipalityName.value}, ${reportProvinceName.value}`)
+function setCoverage(preset: 'today' | 'week' | 'month' | 'all') {
+  const today = manilaDate(0)
+  coverageTo.value = preset === 'all' ? '' : today
+  coverageFrom.value = preset === 'today' ? today : preset === 'week' ? manilaDate(6) : preset === 'month' ? `${today.slice(0, 8)}01` : ''
+}
+const coverageText = computed(() => {
+  const { from, to } = coverage.value
+  if (!from && !to) return 'All dates to date'
+  if (from && to) return from === to ? dayLabel(from) : `${dayLabel(from)} to ${dayLabel(to)}`
+  return from ? `From ${dayLabel(from)}` : `Up to ${dayLabel(to)}`
+})
 const dayLabel = (iso?: string) => iso ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${iso}T00:00:00+08:00`)) : '—'
 const reportStamp = computed(() => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(now.value))
 watch(reportProvince, () => { reportMunicipality.value = '' })
@@ -811,21 +825,25 @@ onBeforeUnmount(() => {
         <section class="page-heading"><div><p class="breadcrumb">Reports & printing</p><h1>Report Center</h1><p>Build a target vs. actual or payment-mode report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
         <section class="report-layout">
           <aside class="report-controls card"><h2>Report settings</h2>
+            <div class="coverage-box"><span class="coverage-title">Date coverage</span>
+              <div class="coverage-presets"><button type="button" @click="setCoverage('today')">Today</button><button type="button" @click="setCoverage('week')">Last 7 days</button><button type="button" @click="setCoverage('month')">This month</button><button type="button" @click="setCoverage('all')">All dates</button></div>
+              <div class="coverage-dates"><label>From<input v-model="coverageFrom" type="date" :max="coverageTo || undefined" /></label><label>To<input v-model="coverageTo" type="date" :min="coverageFrom || undefined" /></label></div>
+              <small>Actual counts beneficiaries validated within these dates. Target stays the full list.</small></div>
             <label>Report<select v-model="reportType"><option value="target">Target vs. actual accomplishment</option><option value="payment">Payment mode breakdown</option></select></label>
             <label>Level<select v-model="reportLevel"><option v-if="role === 'regional'" value="regional">Regional · by province</option><option value="provincial">Provincial · by municipality</option><option value="municipal">Municipal · by barangay</option></select></label>
             <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
             <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
-            <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
+                        <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
             <p class="report-hint soft">Prints on one 8.5 × 13 in landscape sheet (folio). In the print window, keep Scale at 100% and turn off “Headers and footers”.</p>
             <p v-if="reportNames !== 'none'" class="report-hint">{{ number.format(reportList.length) }} names will be printed under the summary.</p>
             <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
           </aside>
           <article class="report-paper" :class="reportDensity">
             <header><img class="report-seal" src="/logo.png" alt="4Ps logo" /><div><small>Department of Social Welfare and Development</small><strong>Pantawid Pamilyang Pilipino Program</strong><span>Enhanced Support Services Intervention</span><small class="office-line">Regional Program Management Office · Davao Region</small></div></header>
-            <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }} · As of {{ reportStamp }}</p></div>
+            <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }}</p><p class="report-coverage"><strong>Date coverage:</strong> {{ coverageText }} · As of {{ reportStamp }}</p></div>
 
             <template v-if="reportType === 'target'">
-              <div class="report-kpis"><div><span>Target beneficiaries</span><strong>{{ number.format(report.total.target) }}</strong></div><div><span>Actual (validated)</span><strong>{{ number.format(report.total.actual) }}</strong></div><div><span>Remaining</span><strong>{{ number.format(report.total.remaining) }}</strong></div><div><span>Completion</span><strong>{{ report.total.percent }}%</strong></div></div>
+              <div class="report-kpis"><div><span>Target beneficiaries</span><strong>{{ number.format(report.total.target) }}</strong></div><div><span>Actual (validated{{ coverage.from || coverage.to ? ' in coverage' : '' }})</span><strong>{{ number.format(report.total.actual) }}</strong></div><div><span>Remaining</span><strong>{{ number.format(report.total.remaining) }}</strong></div><div><span>Completion</span><strong>{{ report.total.percent }}%</strong></div></div>
               <table class="report-table"><thead><tr><th>{{ report.childLabel }}</th><th>Target</th><th>Actual</th><th>Remaining</th><th>Completion</th></tr></thead>
                 <tbody><tr v-for="row in report.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ number.format(row.target) }}</td><td>{{ number.format(row.actual) }}</td><td>{{ number.format(row.remaining) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${row.percent}%` }"></i></span>{{ row.percent }}%</td></tr></tbody>
                 <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th><th>{{ report.total.percent }}%</th></tr></tfoot></table>

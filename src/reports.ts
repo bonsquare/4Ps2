@@ -3,6 +3,8 @@ import type { ReviewRecord } from './sheets'
 // Report scope: the whole region, one province, or one municipality of a province.
 // Each report lists the next level down: provinces, then municipalities, then barangays.
 export type ReportScope = { province?: string; municipality?: string }
+// Date coverage: only beneficiaries validated on these days (inclusive, YYYY-MM-DD) count as Actual. Blank = all dates.
+export type ReportCoverage = { from?: string; to?: string }
 
 export type ReportRow = {
   name: string
@@ -28,7 +30,13 @@ const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 export const inScope = (record: ReviewRecord, scope: ReportScope) =>
   (!scope.province || record.province === scope.province) && (!scope.municipality || record.municipality === scope.municipality)
 
-export function buildReport(records: ReviewRecord[], scope: ReportScope): Report {
+const validatedInCoverage = (record: ReviewRecord, coverage: ReportCoverage) => {
+  if (!coverage.from && !coverage.to) return true
+  const day = record.validatedDate ?? ''
+  return !!day && (!coverage.from || day >= coverage.from) && (!coverage.to || day <= coverage.to)
+}
+
+export function buildReport(records: ReviewRecord[], scope: ReportScope, coverage: ReportCoverage = {}): Report {
   const scoped = records.filter((record) => inScope(record, scope))
   const childOf = (record: ReviewRecord) => (scope.municipality ? record.barangay : scope.province ? record.municipality : record.province)
 
@@ -44,7 +52,7 @@ export function buildReport(records: ReviewRecord[], scope: ReportScope): Report
   const total: ReportRow = { name: 'TOTAL', target: 0, actual: 0, remaining: 0, percent: 0, modes: {} }
   const add = (row: ReportRow, record: ReviewRecord) => {
     row.target += 1
-    if (!record.accomplished) return
+    if (!record.accomplished || !validatedInCoverage(record, coverage)) return
     row.actual += 1
     const mode = modeOf(record)
     row.modes[mode] = (row.modes[mode] ?? 0) + 1
@@ -73,9 +81,9 @@ export function buildReport(records: ReviewRecord[], scope: ReportScope): Report
 }
 
 // Names to print under a report: validated beneficiaries only, or everyone in scope.
-export function beneficiaryList(records: ReviewRecord[], scope: ReportScope, include: 'validated' | 'all') {
+export function beneficiaryList(records: ReviewRecord[], scope: ReportScope, include: 'validated' | 'all', coverage: ReportCoverage = {}) {
   return records
-    .filter((record) => inScope(record, scope) && (include === 'all' || record.accomplished))
+    .filter((record) => inScope(record, scope) && (include === 'all' || (record.accomplished && validatedInCoverage(record, coverage))))
     .sort((a, b) => a.province.localeCompare(b.province) || a.municipality.localeCompare(b.municipality)
       || a.barangay.localeCompare(b.barangay) || a.name.localeCompare(b.name))
 }

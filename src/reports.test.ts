@@ -54,6 +54,28 @@ describe('buildReport', () => {
   })
 })
 
+describe('date coverage', () => {
+  const dated = records.map((item, index) => ({ ...item, validatedDate: item.accomplished ? (index < 2 ? '2026-10-20' : '2026-10-23') : undefined }))
+
+  it('counts as Actual only beneficiaries validated inside the coverage, and keeps the target whole', () => {
+    const report = buildReport(dated, {}, { from: '2026-10-23', to: '2026-10-23' })
+
+    expect(report.total).toMatchObject({ target: 6, actual: 2, remaining: 4 })
+    expect(report.total.modes).toEqual({ VISA: 1, Paymaya: 1 })
+  })
+
+  it('treats a blank coverage as all dates, and an open-ended range as from/up to', () => {
+    expect(buildReport(dated, {}).total.actual).toBe(4)
+    expect(buildReport(dated, {}, { from: '2026-10-21' }).total.actual).toBe(2)
+    expect(buildReport(dated, {}, { to: '2026-10-21' }).total.actual).toBe(2)
+  })
+
+  it('limits the validated name list to the coverage', () => {
+    expect(beneficiaryList(dated, {}, 'validated', { from: '2026-10-23' }).map((item) => item.id)).toEqual(['4', '5'])
+    expect(beneficiaryList(dated, {}, 'all', { from: '2026-10-23' })).toHaveLength(6)
+  })
+})
+
 describe('beneficiaryList', () => {
   it('lists validated beneficiaries (or everyone) in the scope, sorted by place then name', () => {
     expect(beneficiaryList(records, { province: 'Davao del Sur' }, 'validated').map((item) => item.id)).toEqual(['1', '2', '4'])
