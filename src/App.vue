@@ -337,7 +337,7 @@ const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
 const reportProvince = ref('')
 const reportMunicipality = ref('')
 const reportNames = ref<'none' | 'validated' | 'all'>('none')
-const paperSize = ref<'A4' | 'Legal'>('A4')
+const paperSize = ref<'A4' | 'Folio'>('A4')
 const orientation = ref<'portrait' | 'landscape'>('portrait')
 watch(role, (value) => { if (value === 'provincial' && reportLevel.value === 'regional') reportLevel.value = 'provincial' }, { immediate: true })
 const reportProvinceName = computed(() => role.value === 'provincial' ? selectedProvince.value?.name : (reportProvince.value || provinces[0]?.name))
@@ -363,7 +363,9 @@ watch(reportProvince, () => { reportMunicipality.value = '' })
 function applyPageStyle() {
   let tag = document.getElementById('report-page-style')
   if (!tag) { tag = document.createElement('style'); tag.id = 'report-page-style'; document.head.appendChild(tag) }
-  tag.textContent = `@page { size: ${paperSize.value} ${orientation.value}; margin: 14mm; }`
+  // Folio is the Philippine long bond size, 8.5 x 13 in; landscape swaps the sides.
+  const size = paperSize.value === 'Folio' ? (orientation.value === 'landscape' ? '13in 8.5in' : '8.5in 13in') : `A4 ${orientation.value}`
+  tag.textContent = `@page { size: ${size}; margin: 14mm; }`
 }
 watch([paperSize, orientation], applyPageStyle, { immediate: true })
 
@@ -770,7 +772,7 @@ onBeforeUnmount(() => {
             <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
             <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Beneficiary names<select v-model="reportNames"><option value="none">Do not include</option><option value="validated">Validated beneficiaries</option><option value="all">All beneficiaries</option></select></label>
-            <label>Paper size<select v-model="paperSize"><option>A4</option><option>Legal</option></select></label>
+            <label>Paper size<select v-model="paperSize"><option>A4</option><option value="Folio">Folio (8.5 × 13 in)</option></select></label>
             <label>Orientation<select v-model="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
             <p v-if="reportNames !== 'none'" class="report-hint">{{ number.format(reportList.length) }} names will be printed under the summary.</p>
             <div class="live-note"><strong>Live data</strong><span>Built from the provincial Google Sheets as of {{ reportStamp }}.</span></div>
