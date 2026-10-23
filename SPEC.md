@@ -67,6 +67,13 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 
 Copy `.env.example` to `.env` for local work. Also add the local and deployed URLs to Supabase's redirect allow list. Without these variables the login page shows "Administrator setup is required".
 
+## Security
+
+- Data endpoints require an approved user's token (`src/serverAuth.ts`); the database enforces the same with Row Level Security. Dashboard data and the service worker never cache private responses. No secret keys are in the repo or the browser (only the public anon key). `npm audit` reported 0 vulnerabilities on 2026-10-23.
+- `vercel.json` sends `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and a **report-only** Content-Security-Policy (allows Google sign-in, Cloudflare Turnstile and Supabase). Switch it to enforcing (`Content-Security-Policy`) after the browser console shows no CSP warnings on sign-in, the dashboard and reports.
+- `supabase/migrations/20261023200000_harden_accomplishment_log.sql` stops approved users from setting `first_seen` themselves; run it in the Supabase SQL editor.
+- Still a trade-off: an approved user could add extra `accomplishment_log` keys through the public API (they cannot choose dates). A full fix is to write the log from the server with a service-role key kept only in Vercel's environment.
+
 ## Non-goals
 - Editing sheet data from the app, province-restricted access, and multi-language UI are not implemented.
 
