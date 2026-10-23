@@ -134,3 +134,5 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 
 .beneficiary-dialog header .review-status { margin-top: 10px; }
 .detail-columns dd a { color: var(--blue); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+.remarks-cell { min-width: 160px; max-width: 280px; overflow-wrap: anywhere; color: var(--ink-2); }

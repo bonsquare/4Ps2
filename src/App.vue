@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { init, use, type ECharts } from 'echarts/core'
-import { BarChart } from 'echarts/charts'
+import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
@@ -10,7 +10,7 @@ import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetail
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
-use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 type Role = 'regional' | 'provincial'
 type View = 'overview' | 'province' | 'reports' | 'approvals'
@@ -510,7 +510,7 @@ onBeforeUnmount(() => {
             <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, or account" /></label>
           </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
-          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td></tr></tbody></table></div>
+          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th>Date</th><th>Status</th><th>Remarks</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td>{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td>{{ record.date ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.date}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td><td class="remarks-cell">{{ record.payment.remarks || '—' }}</td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
         </section>
         <div v-if="selectedReviewRecord" class="detail-backdrop" role="presentation" @click.self="selectedReviewRecord = null">
