@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
-import { getAccomplishmentSnapshot } from './src/sheets.ts'
+import { applyFirstSeen, getAccomplishmentSnapshot } from './src/sheets.ts'
 
 export default defineConfig({
   plugins: [
@@ -13,7 +13,8 @@ export default defineConfig({
         server.middlewares.use(async (request, response, next) => {
           if (request.url?.split('?')[0] !== '/sheet-data') return next()
           try {
-            const snapshot = await getAccomplishmentSnapshot(fetch)
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())
+            const snapshot = applyFirstSeen(await getAccomplishmentSnapshot(fetch), {}, today)
             response.setHeader('Content-Type', 'application/json')
             response.end(JSON.stringify(snapshot))
           } catch (error) {

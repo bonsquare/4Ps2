@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { applyFirstSeen, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, countAccomplishments, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
 
 const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
 const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
@@ -170,6 +170,32 @@ describe('beneficiary detail sections', () => {
   it('labels a row with a payment value Validated and an empty one For Validation', () => {
     expect(statusLabel(record)).toBe('Validated')
     expect(statusLabel({ ...record, accomplished: false })).toBe('For Validation')
+  })
+})
+
+describe('applyFirstSeen', () => {
+  const baseRecord = { name: '', municipality: '', barangay: '', householdId: '', accountNumber: '', paymentMode: 'GCash' }
+  const snapshot = {
+    source: 'Google Sheets', lastRefresh: '',
+    provinces: [{ id: 'sur', name: 'Davao del Sur', target: 5, accomplished: 3, daily: { '2026-10-18': 1 }, today: 0 }],
+    daily: [{ date: '2026-10-18', value: 1 }],
+    records: [
+      { ...baseRecord, id: 'E-1', province: 'Davao del Sur', date: '2026-10-18', accomplished: true },
+      { ...baseRecord, id: 'E-2', province: 'Davao del Sur', date: null, accomplished: true },
+      { ...baseRecord, id: 'E-3', province: 'Davao del Sur', date: null, accomplished: true },
+      { ...baseRecord, id: 'E-4', province: 'Davao del Sur', date: null, accomplished: false },
+    ],
+  } as unknown as Parameters<typeof applyFirstSeen>[0]
+
+  it('counts undated accomplished rows on their first-seen day, or today when unknown, so the graph adds up', () => {
+    const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23')
+
+    expect(result.daily).toEqual([
+      { date: '2026-10-18', value: 1 }, { date: '2026-10-21', value: 1 }, { date: '2026-10-23', value: 1 },
+    ])
+    expect(result.provinces[0].daily).toEqual({ '2026-10-18': 1, '2026-10-21': 1, '2026-10-23': 1 })
+    expect(result.provinces[0].today).toBe(1)
+    expect(result.daily.reduce((sum, item) => sum + item.value, 0)).toBe(3)
   })
 })
 

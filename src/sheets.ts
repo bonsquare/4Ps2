@@ -290,3 +290,28 @@ export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch) {
     lastRefresh: new Date().toISOString(),
   }
 }
+
+type Snapshot = Awaited<ReturnType<typeof getAccomplishmentSnapshot>>
+
+export const entryKey = (record: { province: string; id: string }) => `${record.province}|${record.id}`
+export const undatedAccomplished = (snapshot: Snapshot) => snapshot.records.filter((record) => record.accomplished && !record.date)
+
+// Accomplished rows with no date in the sheet are counted on the day they were first seen (firstSeen),
+// or on `today` when that is not recorded yet, so the daily graph always adds up to the accomplished total.
+export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, string>, today: string): Snapshot {
+  const daily: Record<string, number> = Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value]))
+  const provinces = snapshot.provinces.map((province) => ({ ...province, daily: { ...province.daily } }))
+  for (const record of undatedAccomplished(snapshot)) {
+    const province = provinces.find((item) => item.name === record.province)
+    if (!province) continue
+    const date = firstSeen[entryKey(record)] ?? today
+    province.daily[date] = (province.daily[date] ?? 0) + 1
+    daily[date] = (daily[date] ?? 0) + 1
+    if (date === today) province.today += 1
+  }
+  return {
+    ...snapshot,
+    provinces,
+    daily: Object.entries(daily).sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value })),
+  }
+}
