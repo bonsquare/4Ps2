@@ -54,6 +54,20 @@ describe('summarizeWorksheet', () => {
     })
   })
 
+  it('counts any value in the payment column, including the dropdown options GCash, Paymaya, PISO Plus and VISA', () => {
+    const csv = [
+      'PROVINCE,Entry_id,ACCOUNT DESCRIPTION/Mode of Payment',
+      'DAVAO DEL SUR,E-001,GCash',
+      'DAVAO DEL SUR,E-002,Paymaya',
+      'DAVAO DEL SUR,E-003,PISO Plus',
+      'DAVAO DEL SUR,E-004,VISA',
+      'DAVAO DEL SUR,E-005,',
+    ].join('\n')
+
+    expect(summarizeWorksheet(csv)).toMatchObject({ target: 5, accomplished: 4 })
+    expect(extractReviewRecords(csv, 'Davao del Sur').map((record) => record.accomplished)).toEqual([true, true, true, true, false])
+  })
+
   it('uses only rows with an Entry_id as provincial targets', () => {
     const csv = [
       'PROVINCE,Entry_id,ACCOUNT DESCRIPTION/Mode of Payment',

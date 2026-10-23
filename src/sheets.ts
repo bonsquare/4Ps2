@@ -101,7 +101,7 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
       accountNumber: cell(row, accountNumberIndex),
       paymentMode,
       date: normalizeDate(cell(row, dateIndex)),
-      accomplished: VALID_MODE.test(paymentMode),
+      accomplished: paymentMode !== '',
     }]
   })
 }
@@ -122,7 +122,7 @@ export function summarizeWorksheet(csv: string) {
   for (const row of rows.slice(1)) {
     if (entryIdIndex < 0 || !String(row[entryIdIndex] ?? '').trim()) continue
     target += 1
-    if (paymentIndex < 0 || !VALID_MODE.test(String(row[paymentIndex] ?? '').trim())) continue
+    if (paymentIndex < 0 || !String(row[paymentIndex] ?? '').trim()) continue
     accomplished += 1
     const date = dateIndex >= 0 ? normalizeDate(String(row[dateIndex] ?? '')) : null
     if (date) daily[date] = (daily[date] ?? 0) + 1
