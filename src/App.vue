@@ -320,7 +320,12 @@ function makeCharts() {
     secondChart.setOption({
       grid: { left: 48, right: 18, top: 40, bottom: 38 }, tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } }, yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
-      series: [{ type: 'bar', data: daily.value.map(d => d[1]), barWidth: '48%', itemStyle: { color: '#1d5b91', borderRadius: [5, 5, 0, 0] }, label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 } }],
+      series: [{
+        name: 'Region accomplishments', type: 'line', data: daily.value.map(d => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
+        lineStyle: { width: 3, color: '#1d5b91' }, itemStyle: { color: '#1d5b91', borderColor: '#fff', borderWidth: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(29,91,145,.28)' }, { offset: 1, color: 'rgba(29,91,145,0)' }] } },
+        label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 },
+      }],
     })
   }
 }
