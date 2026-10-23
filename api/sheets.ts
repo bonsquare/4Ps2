@@ -33,7 +33,7 @@ export default async function handler(request: ServerRequest, response: ServerRe
     // Manual refresh (?fresh=1) skips the per-instance cache; background polling reuses it for CACHE_MS.
     const fresh = request.url?.includes('fresh=1')
     if (fresh || !cached || Date.now() - cached.at > CACHE_MS) {
-      cached = { at: Date.now(), snapshot: await getAccomplishmentSnapshot(fetch, process.env.GOOGLE_API_KEY) }
+      cached = { at: Date.now(), snapshot: await getAccomplishmentSnapshot(fetch) }
     }
     response.status(200).json(cached.snapshot)
   } catch (error) {

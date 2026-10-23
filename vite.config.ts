@@ -13,7 +13,7 @@ export default defineConfig({
         server.middlewares.use(async (request, response, next) => {
           if (request.url?.split('?')[0] !== '/sheet-data') return next()
           try {
-            const snapshot = await getAccomplishmentSnapshot(fetch, process.env.GOOGLE_API_KEY)
+            const snapshot = await getAccomplishmentSnapshot(fetch)
             response.setHeader('Content-Type', 'application/json')
             response.end(JSON.stringify(snapshot))
           } catch (error) {

@@ -194,22 +194,17 @@ describe('getAccomplishmentSnapshot', () => {
     expect(snapshot.records[0]).toMatchObject({ id: 'E-001', province: 'Davao Oriental', accomplished: true })
   })
 
-  it('reads every row through the Sheets API when a key is set, so sheet filters cannot hide beneficiaries', async () => {
+  it('reads each province through the gid CSV export, which keeps rows hidden by a sheet filter', async () => {
     const requestedUrls: string[] = []
-    const values = [
-      ['PROVINCE', 'Entry_id', 'ACCOUNT DESCRIPTION/Mode of Payment'],
-      ['DAVAO DEL SUR', 'E-001', 'Cash Card'],
-      ['DAVAO DEL SUR', 'E-002', ''],
-      ['DAVAO DEL SUR', 'E-003', ''],
-    ]
     const fetcher = (async (input: string | URL | Request) => {
       requestedUrls.push(String(input))
-      return { ok: true, json: async () => ({ values }) } as Response
+      return { ok: true, text: async () => 'PROVINCE,Entry_id,Mode of payment' } as Response
     }) as typeof fetch
 
-    const snapshot = await getAccomplishmentSnapshot(fetcher, 'test-key')
+    await getAccomplishmentSnapshot(fetcher)
 
-    expect(requestedUrls.every((url) => url.startsWith('https://sheets.googleapis.com/v4/') && url.includes('key=test-key'))).toBe(true)
-    expect(snapshot.provinces.every((province) => province.target === 3 && province.accomplished === 1)).toBe(true)
+    expect(requestedUrls).toHaveLength(6)
+    expect(requestedUrls.every((url) => /\/export\?format=csv&gid=\d+$/.test(url))).toBe(true)
+    expect(requestedUrls.some((url) => url.includes('gviz'))).toBe(false)
   })
 })

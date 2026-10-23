@@ -3,12 +3,12 @@ import Papa from 'papaparse'
 export const SPREADSHEET_ID = '1pOGqgiAp9mToEvC3tNrPubbeyUsJjyge7GDSD-wrZHQ'
 
 export const WORKSHEETS = [
-  { id: 'oriental', name: 'Davao Oriental', tab: 'DAVAO ORIENTAL' },
-  { id: 'oro', name: 'Davao de Oro', tab: 'DAVAO DE ORO' },
-  { id: 'norte', name: 'Davao del Norte', tab: 'DAVAO DEL NORTE' },
-  { id: 'city', name: 'Davao City', tab: 'DAVAO CITY' },
-  { id: 'sur', name: 'Davao del Sur', tab: 'DAVAO DEL SUR' },
-  { id: 'occidental', name: 'Davao Occidental', tab: 'DAVAO OCCIDENTAL' },
+  { id: 'oriental', name: 'Davao Oriental', tab: 'DAVAO ORIENTAL', gid: '1809151402' },
+  { id: 'oro', name: 'Davao de Oro', tab: 'DAVAO DE ORO', gid: '1117267143' },
+  { id: 'norte', name: 'Davao del Norte', tab: 'DAVAO DEL NORTE', gid: '553226537' },
+  { id: 'city', name: 'Davao City', tab: 'DAVAO CITY', gid: '467420548' },
+  { id: 'sur', name: 'Davao del Sur', tab: 'DAVAO DEL SUR', gid: '1692955273' },
+  { id: 'occidental', name: 'Davao Occidental', tab: 'DAVAO OCCIDENTAL', gid: '1373907878' },
 ] as const
 
 const VALID_MODE = /\b(?:cash\s*card|e[\s-]*wallet)\b/i
@@ -257,22 +257,17 @@ export function summarizeWorksheet(csv: string) {
   return { target, accomplished, daily }
 }
 
-// The gviz CSV export drops rows hidden by a sheet filter, so a worker filtering their tab would shrink the counts.
-// The Sheets API values endpoint returns every row regardless of filters; it needs an API key, so gviz stays the fallback.
-async function readWorksheetCsv(tab: string, name: string, fetcher: typeof fetch, apiKey?: string) {
-  const url = apiKey
-    ? `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(`'${tab}'`)}?valueRenderOption=FORMATTED_VALUE&key=${encodeURIComponent(apiKey)}`
-    : `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`
-  const response = await fetcher(url)
+// Reads the tab through the CSV export by gid. Unlike the gviz endpoint, it returns every row even when a
+// worker has filtered the sheet, so filtering can never change the counts. Needs no API key.
+async function readWorksheetCsv(gid: string, name: string, fetcher: typeof fetch) {
+  const response = await fetcher(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`)
   if (!response.ok) throw new Error(`Unable to read ${name}`)
-  if (!apiKey) return response.text()
-  const { values = [] } = await response.json() as { values?: string[][] }
-  return Papa.unparse(values)
+  return response.text()
 }
 
-export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch, apiKey?: string) {
+export async function getAccomplishmentSnapshot(fetcher: typeof fetch = fetch) {
   const results = await Promise.all(WORKSHEETS.map(async (worksheet) => {
-    const csv = await readWorksheetCsv(worksheet.tab, worksheet.name, fetcher, apiKey)
+    const csv = await readWorksheetCsv(worksheet.gid, worksheet.name, fetcher)
     const summary = summarizeWorksheet(csv)
     return { id: worksheet.id, name: worksheet.name, records: extractReviewRecords(csv, worksheet.name), ...summary }
   }))
