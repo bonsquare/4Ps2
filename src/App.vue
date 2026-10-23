@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { init, use, type ECharts } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { DataZoomComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
@@ -10,7 +10,7 @@ import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetail
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
-use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+use([BarChart, LineChart, DataZoomComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 // Local-only shortcut: `npm run dev` on localhost skips Google sign-in. import.meta.env.DEV is false in production
 // builds, so this branch is removed from the deployed bundle.
@@ -27,18 +27,53 @@ const provinces = reactive<Province[]>([
   { id: 'occidental', name: 'Davao Occidental', target: 760, accomplished: 604, today: 26 },
 ])
 
-// The trend charts show the real count for each of the last 7 days (Asia/Manila); days with none are 0.
+// The trend charts run from the earliest accomplishment date (at least the last 7 days) up to today, one point per day.
+// A scroll bar under the chart lets you move across the dates; it opens on the latest 7 days.
 const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
-function lastSevenDays(values: Record<string, number>): Array<[string, number]> {
-  const dates = Array.from({ length: 7 }, (_, index) => manilaDate(6 - index))
-  return dates.map((date) => {
+const MAX_CHART_DAYS = 366
+function dateRange(values: Record<string, number>) {
+  const floor = manilaDate(MAX_CHART_DAYS)
+  const earliest = Object.keys(values).filter((date) => values[date] > 0 && date >= floor).sort()[0]
+  const start = earliest && earliest < manilaDate(6) ? earliest : manilaDate(6)
+  const end = Date.parse(`${manilaDate(0)}T00:00:00Z`)
+  const range: string[] = []
+  for (let time = Date.parse(`${start}T00:00:00Z`); time <= end; time += 86_400_000) range.push(new Date(time).toISOString().slice(0, 10))
+  return range
+}
+function dailySeries(values: Record<string, number>): Array<[string, number]> {
+  return dateRange(values).map((date) => {
     const day = new Date(`${date}T00:00:00+08:00`)
     const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }).format(day)
     const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(day)
     return [`${weekday}\n${monthDay}`, values[date] ?? 0]
   })
 }
-const daily = ref<Array<[string, number]>>(lastSevenDays({}))
+const daily = ref<Array<[string, number]>>(dailySeries({}))
+const dailyMap = ref<Record<string, number>>({})
+// Subtitle that splits the counts into the charted dates and any others (e.g. a future date typed in the sheet),
+// so the chart's numbers always add up to the Accomplished total.
+function rangeNote(values: Record<string, number>) {
+  const range = dateRange(values)
+  const shown = new Set(range)
+  let inRange = 0
+  let other = 0
+  for (const [date, value] of Object.entries(values)) {
+    if (shown.has(date)) inRange += value
+    else other += value
+  }
+  const format = (value: number) => value.toLocaleString('en-US')
+  const label = (iso: string) => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`))
+  return `${label(range[0])} – ${label(range[range.length - 1])}: ${format(inRange)}${other ? ` · other dates: ${format(other)}` : ''} · total ${format(inRange + other)}`
+}
+// Scroll bar under a trend chart once there are more than 7 days; the window opens on the latest 7.
+function zoomFor(count: number) {
+  if (count <= 7) return { bottom: 36, zoom: [] }
+  const window = { startValue: count - 7, endValue: count - 1 }
+  return { bottom: 80, zoom: [
+    { type: 'slider', xAxisIndex: 0, bottom: 8, height: 22, ...window, filterMode: 'none', brushSelect: false, showDataShadow: false, borderColor: 'transparent', backgroundColor: '#eef3f7', fillerColor: 'rgba(29,91,145,.22)', handleSize: '120%', textStyle: { color: '#526377' } },
+    { type: 'inside', xAxisIndex: 0, ...window, filterMode: 'none', zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
+  ] }
+}
 const completionOf = (item: { target: number; accomplished: number }) => item.target ? Math.round(item.accomplished / item.target * 1000) / 10 : 0
 
 const currentUser = ref<User | null>(null)
@@ -321,12 +356,14 @@ function makeCharts() {
   const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
   if (isProvinceView.value) {
     const p = selectedProvince.value
+    const series = dailySeries(scopeSummary.value?.daily ?? p.daily ?? {})
+    const zoom = zoomFor(series.length)
     firstChart.setOption({
-      grid: { left: 44, right: 18, top: 38, bottom: 36 },
-      tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } },
+      grid: { left: 44, right: 18, top: 38, bottom: zoom.bottom }, dataZoom: zoom.zoom,
+      tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: series.map((d) => d[0]), axisLabel: { ...text, interval: 0 } },
       yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{
-        name: 'Province accomplishments', type: 'line', data: lastSevenDays(scopeSummary.value?.daily ?? p.daily ?? {}).map((d) => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
+        name: 'Province accomplishments', type: 'line', data: series.map((d) => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
         lineStyle: { width: 3, color: '#17795f' }, itemStyle: { color: '#17795f', borderColor: '#fff', borderWidth: 2 },
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(23,121,95,.28)' }, { offset: 1, color: 'rgba(23,121,95,0)' }] } },
         label: { show: true, position: 'top', color: '#24364b', fontWeight: 700 },
@@ -360,8 +397,9 @@ function makeCharts() {
           label: { show: true, position: 'top', color: '#0f5f49', fontWeight: 800, formatter: (item: { value: unknown; dataIndex: number }) => number.format(Number(item.value)) + '\n' + completionOf(provinces[item.dataIndex]) + '%' } },
       ],
     })
+    const zoom = zoomFor(daily.value.length)
     secondChart.setOption({
-      grid: { left: 48, right: 18, top: 40, bottom: 38 }, tooltip: { trigger: 'axis' },
+      grid: { left: 48, right: 18, top: 40, bottom: zoom.bottom }, dataZoom: zoom.zoom, tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: daily.value.map(d => d[0]), axisLabel: { ...text, interval: 0 } }, yAxis: { type: 'value', minInterval: 1, axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{
         name: 'Region accomplishments', type: 'line', data: daily.value.map(d => d[1]), smooth: 0.3, symbol: 'circle', symbolSize: 9,
@@ -393,7 +431,8 @@ async function loadGoogleSheets(force = false) {
     }
     provinces.splice(0, provinces.length, ...snapshot.provinces)
     reviewRecords.value = snapshot.records ?? []
-    daily.value = lastSevenDays(Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value])))
+    dailyMap.value = Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value]))
+    daily.value = dailySeries(dailyMap.value)
     lastRefresh.value = new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date(snapshot.lastRefresh))
@@ -552,8 +591,8 @@ onBeforeUnmount(() => {
           <article><span>Today's accomplishment</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? `Verified output per day, last 7 days · total ${number.format(displayMetrics.accomplished)}` : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : `Accomplishments per day, last 7 days · total ${number.format(totals.accomplished)}` }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : rangeNote(dailyMap) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
         </section>
         <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td class="completion-cell"><div class="completion-wrap"><div class="mini-bar"><span :style="{ width: `${completionOf(item)}%` }"></span></div><strong>{{ item.target ? `${completionOf(item)}%` : '—' }}</strong></div></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
         <section class="card review-table" aria-labelledby="review-title">
