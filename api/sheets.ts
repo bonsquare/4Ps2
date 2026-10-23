@@ -1,5 +1,6 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { accomplishedRecords, applyFirstSeen, entryKey, getAccomplishmentSnapshot } from '../src/sheets.js'
+import { approvedClient } from '../src/serverAuth.js'
 
 type Snapshot = Awaited<ReturnType<typeof getAccomplishmentSnapshot>>
 type ServerRequest = { url?: string; headers: Record<string, string | string[] | undefined> }
@@ -10,19 +11,6 @@ type ServerResponse = {
 
 const CACHE_MS = 15_000
 let cached: { at: number; snapshot: Snapshot } | undefined
-
-// The snapshot carries beneficiary contact and personal details, so only signed-in, approved users may read it.
-async function approvedClient(authorization: string | string[] | undefined) {
-  const token = String(authorization ?? '').replace(/^Bearer\s+/i, '')
-  const url = process.env.VITE_SUPABASE_URL
-  const key = process.env.VITE_SUPABASE_ANON_KEY
-  if (!token || !url || !key) return null
-  const client = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } })
-  const { data: { user } } = await client.auth.getUser(token)
-  if (!user) return null
-  const { data } = await client.from('user_profiles').select('status').eq('id', user.id).maybeSingle()
-  return data?.status === 'approved' ? client : null
-}
 
 // Records the first day each accomplished row was seen (its validation date), and counts undated rows on that day.
 // If the log table is missing or unreadable, those rows simply count as today.

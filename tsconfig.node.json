@@ -7,5 +7,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "src/sheets.ts"]
+  "include": ["vite.config.ts", "src/sheets.ts", "src/concerns.ts"]
 }

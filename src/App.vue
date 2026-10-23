@@ -7,6 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
@@ -19,7 +20,7 @@ const devPreview = import.meta.env.DEV ? new URLSearchParams(window.location.sea
 const devBypass = import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname) && devPreview !== 'login'
 
 type Role = 'regional' | 'provincial'
-type View = 'overview' | 'province' | 'reports' | 'approvals'
+type View = 'overview' | 'province' | 'reports' | 'approvals' | 'concerns'
 
 const provinces = reactive<Province[]>([
   { id: 'sur', name: 'Davao del Sur', target: 1240, accomplished: 986, today: 42 },
@@ -329,10 +330,66 @@ async function signInWithGoogleCredential(response: { credential: string }) {
   }
 }
 
+// ---- Community concerns (second Google Sheet) ----
+const concerns = ref<Concern[]>([])
+const concernsError = ref('')
+const concernsLoading = ref(false)
+const concernArea = ref('all')
+const concernProvince = ref('all')
+const concernStatus = ref<'all' | ConcernStatus>('all')
+const concernQuery = ref('')
+const concernPage = ref(1)
+const CONCERN_PAGE_SIZE = 12
+const concernCounts = computed(() => ({
+  total: concerns.value.length,
+  open: concerns.value.filter((item) => item.status === 'Open').length,
+  responded: concerns.value.filter((item) => item.status === 'Responded').length,
+  resolved: concerns.value.filter((item) => item.status === 'Resolved').length,
+}))
+const concernAreas = computed(() => [...new Set(concerns.value.map((item) => item.area))])
+const concernProvinces = computed(() => [...new Set(concerns.value.map((item) => item.province).filter(Boolean))].sort())
+const areaBreakdown = computed(() => concernAreas.value.map((area) => {
+  const items = concerns.value.filter((item) => item.area === area)
+  const count = (status: ConcernStatus) => items.filter((item) => item.status === status).length
+  return { area, total: items.length, open: count('Open'), responded: count('Responded'), resolved: count('Resolved') }
+}))
+const filteredConcerns = computed(() => {
+  const query = concernQuery.value.trim().toLowerCase()
+  return concerns.value.filter((item) =>
+    (concernArea.value === 'all' || item.area === concernArea.value)
+    && (concernProvince.value === 'all' || item.province === concernProvince.value)
+    && (concernStatus.value === 'all' || item.status === concernStatus.value)
+    && (!query || `${item.concern} ${item.response} ${item.area} ${item.province}`.toLowerCase().includes(query)))
+})
+const concernTotalPages = computed(() => Math.max(1, Math.ceil(filteredConcerns.value.length / CONCERN_PAGE_SIZE)))
+const pagedConcerns = computed(() => paginateRecords(filteredConcerns.value, concernPage.value, CONCERN_PAGE_SIZE))
+watch([concernArea, concernProvince, concernStatus, concernQuery], () => { concernPage.value = 1 })
+watch(concernTotalPages, (pages) => { if (concernPage.value > pages) concernPage.value = pages })
+
+async function loadConcerns(force = false) {
+  concernsLoading.value = true
+  try {
+    const session = authClient ? (await authClient.auth.getSession()).data.session : null
+    if (!session && !devBypass) return
+    const response = await fetch(force ? '/concerns-data?fresh=1' : '/concerns-data', { headers: session ? { Authorization: `Bearer ${session.access_token}` } : {} })
+    if (!response.ok) {
+      const detail = await response.json().then((body: { error?: string }) => body.error, () => undefined)
+      throw new Error(detail ?? 'Unable to load community concerns')
+    }
+    concerns.value = (await response.json() as { concerns: Concern[] }).concerns
+    concernsError.value = ''
+  } catch (error) {
+    concernsError.value = error instanceof Error ? error.message : 'Unable to load community concerns'
+  } finally {
+    concernsLoading.value = false
+  }
+}
+
 function navigate(view: View) {
   activeView.value = view
   menuOpen.value = false
   if (view === 'approvals') loadProfiles()
+  if (view === 'concerns') loadConcerns()
 }
 
 async function refreshData() {
@@ -459,7 +516,7 @@ async function loadGoogleSheets(force = false) {
 
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
 watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
-watch(appAccess, (access) => { if (access === 'approved') loadGoogleSheets() })
+watch(appAccess, (access) => { if (access === 'approved') { loadGoogleSheets(); loadConcerns() } })
 watch(superAdmin, (isAdmin) => { if (isAdmin) loadProfiles(true) })
 watch(selectedProvinceId, () => { municipality.value = 'all' })
 watch([selectedProvinceId, municipality, reviewProvinceId, reviewQuery, reviewStatus], () => { reviewPage.value = 1 })
@@ -498,6 +555,7 @@ onMounted(async () => {
   refreshTimer = window.setInterval(() => {
     if (loggedIn.value) refreshDataInBackground()
     if (superAdmin.value) loadProfiles(true)
+    if (loggedIn.value) loadConcerns()
   }, 15_000)
 })
 onBeforeUnmount(() => {
@@ -598,12 +656,13 @@ onBeforeUnmount(() => {
         <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
         <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
         <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
+        <button :class="{ active: activeView === 'concerns' }" @click="navigate('concerns')"><i>✎</i>Community concerns<span v-if="concernCounts.open" class="notify-dot soft" :aria-label="`${concernCounts.open} open concerns`">{{ concernCounts.open }}</span></button>
         <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management<span v-if="profileCounts.pending" class="notify-dot" :aria-label="`${profileCounts.pending} pending access requests`">{{ profileCounts.pending }}</span></button>
       </nav>
     </aside>
 
     <main class="content">
-      <template v-if="activeView !== 'reports' && activeView !== 'approvals'">
+      <template v-if="activeView !== 'reports' && activeView !== 'approvals' && activeView !== 'concerns'">
         <section class="page-heading">
           <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
           <div class="heading-actions">
@@ -674,6 +733,34 @@ onBeforeUnmount(() => {
             <div class="signatures"><div><span>Prepared by:</span><i></i><strong>Name and Signature</strong></div><div><span>Reviewed / Approved by:</span><i></i><strong>Name and Signature</strong></div></div>
             <footer>Generated October 22, 2026 · 10:48 PM (Asia/Manila)<span>Page 1 of 1</span></footer>
           </article>
+        </section>
+      </template>
+
+      <template v-else-if="activeView === 'concerns'">
+        <section class="page-heading"><div><p class="breadcrumb">Dashboard / Community concerns</p><h1>Community concerns</h1><p>Questions, issues and recommendations raised from the field, and the response given.</p></div>
+          <div class="heading-actions"><a class="refresh-button link-as-button" :href="CONCERNS_SHEET_URL" target="_blank" rel="noopener noreferrer">Add or edit in Google Sheets ↗</a><button class="refresh-button" :disabled="concernsLoading" @click="loadConcerns(true)">{{ concernsLoading ? 'Refreshing…' : 'Refresh' }}</button></div></section>
+        <div v-if="concernsError" class="connection-error" role="alert">{{ concernsError }}</div>
+        <section class="metrics concern-metrics" aria-label="Concern summary">
+          <article><span>Total concerns</span><strong>{{ number.format(concernCounts.total) }}</strong><small>{{ concernAreas.length }} areas of concern</small></article>
+          <article><span>Open</span><strong>{{ number.format(concernCounts.open) }}</strong><small>Waiting for a response</small></article>
+          <article><span>Responded</span><strong>{{ number.format(concernCounts.responded) }}</strong><small>Answered by the team</small></article>
+          <article><span>Resolved</span><strong>{{ number.format(concernCounts.resolved) }}</strong><small>Closed out</small></article>
+        </section>
+        <section class="card area-card"><header><div><h2>Concerns by area</h2><p>Select an area to filter the list below</p></div></header>
+          <ul class="area-list"><li v-for="item in areaBreakdown" :key="item.area" :class="{ active: concernArea === item.area }"><button @click="concernArea = concernArea === item.area ? 'all' : item.area"><span class="area-name">{{ item.area }}</span><span class="area-count">{{ item.total }}</span>
+            <span class="stack-bar" role="img" :aria-label="`${item.open} open, ${item.responded} responded, ${item.resolved} resolved`"><i class="s-open" :style="{ flex: item.open }"></i><i class="s-responded" :style="{ flex: item.responded }"></i><i class="s-resolved" :style="{ flex: item.resolved }"></i></span></button></li></ul>
+          <p class="legend-row"><span><i class="s-open"></i>Open</span><span><i class="s-responded"></i>Responded</span><span><i class="s-resolved"></i>Resolved</span></p></section>
+        <section class="card concern-list"><header><div><h2>Concerns and responses</h2><p>Live from the community concerns Google Sheet</p></div><strong class="count-chip">{{ number.format(filteredConcerns.length) }} concerns</strong></header>
+          <div class="review-filters concern-filters">
+            <label>Area<select v-model="concernArea"><option value="all">All areas</option><option v-for="item in concernAreas" :key="item" :value="item">{{ item }}</option></select></label>
+            <label>Province<select v-model="concernProvince"><option value="all">All provinces</option><option v-for="item in concernProvinces" :key="item" :value="item">{{ item }}</option></select></label>
+            <label>Status<select v-model="concernStatus"><option value="all">All statuses</option><option value="Open">Open</option><option value="Responded">Responded</option><option value="Resolved">Resolved</option></select></label>
+            <label class="review-search">Search<input v-model="concernQuery" type="search" placeholder="Search a concern or response" /></label>
+          </div>
+          <p v-if="filteredConcerns.length === 0" class="empty-state">No concerns match these filters.</p>
+          <div v-else class="table-scroll"><table class="concern-table"><thead><tr><th>Area of concern</th><th>Province</th><th>Question / issue / concern</th><th>Response</th><th>Status</th></tr></thead><tbody>
+            <tr v-for="item in pagedConcerns" :key="item.id"><td class="area-cell">{{ item.area }}</td><td>{{ item.province || '—' }}</td><td class="text-cell">{{ item.concern }}</td><td class="text-cell">{{ item.response || '—' }}</td><td><span class="concern-status" :class="item.status.toLowerCase()">{{ item.status }}</span></td></tr></tbody></table></div>
+          <div v-if="filteredConcerns.length > CONCERN_PAGE_SIZE" class="pagination" aria-label="Concern pages"><button :disabled="concernPage === 1" @click="concernPage -= 1">Previous</button><span>Page {{ concernPage }} of {{ concernTotalPages }}</span><button :disabled="concernPage === concernTotalPages" @click="concernPage += 1">Next</button></div>
         </section>
       </template>
 

@@ -3,5 +3,6 @@ import App from './App.vue'
 import './style.css'
 import './refresh.css'
 import './auth-pages.css'
+import './concerns.css'
 
 createApp(App).mount('#app')
