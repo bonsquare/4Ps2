@@ -124,7 +124,8 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .dialog-section { margin: 22px 0 -6px; padding-top: 6px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--green); }
 
 /* Beneficiary dialog: bold name, two columns */
-.beneficiary-dialog { width: min(100%, 980px); }
+.beneficiary-dialog { width: min(100%, 980px); max-height: calc(100vh - 72px - 40px); } /* backdrop starts below the 72px topbar, so the dialog must be shorter than the viewport by that much or it spills over the topbar */
+@media (max-width: 760px) { .beneficiary-dialog { max-height: calc(100vh - 40px); } }
 .beneficiary-dialog h2 { font-weight: 800; letter-spacing: -.02em; }
 .detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 40px; align-items: start; }
 .detail-columns .dialog-section { margin-top: 22px; margin-bottom: -6px; }
