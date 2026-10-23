@@ -48,6 +48,13 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 - `GET /concerns-data` → `api/concerns.ts`: same auth, returns concerns.
 - Rewrites are in `vercel.json`.
 
+## Installable app (PWA)
+
+- `public/manifest.webmanifest` (name "4Ps Enhanced Support Services Intervention", short name "4Ps ESSI", standalone, theme `#4338ca`) and icons `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (made from `logo.png`). Browsers offer "Install app"; on iPhone use Share → Add to Home Screen.
+- `public/sw.js` is registered from `src/main.ts` in production only. It caches the app shell (page, built `/assets/*` files, logo, icons) and shows `public/offline.html` when there is no connection.
+- **Private data is never cached:** `/sheet-data`, `/concerns-data`, `/api/*` and all non-GET or cross-origin requests (Google, Supabase, Turnstile) bypass the service worker. The dashboard still needs a connection to show data.
+- Pages are fetched network first, so a new deploy shows up immediately and the "new version" prompt keeps working. Bump `CACHE` in `sw.js` if cached files ever need to be forced out.
+
 ## Configuration
 
 | Variable | Used by |

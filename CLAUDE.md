@@ -33,6 +33,12 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 - Keep user-facing labels in Title Case as in the sidebar and cards (e.g. "Provincial Overview", "Accomplished to Date", "Remaining Target", "Completion Rate", "Completed Today", "Reports & Printing", "Refresh Data"). "Regional Overview", "Regional Target" and "Provincial Performance" are fixed.
 - Login page: picture panel on the left, sign-in on the right (`order: -1` on `.login-context`). The picture (`public/login-bg.webp`) is the whole panel background via `.login-context::before`. Do not add blur, fade, tint, gradient or other color layers over it, and keep the text off any solid card. The program name "Pantawid Pamilyang Pilipino Program" must stay the largest text on the picture panel.
 
+## PWA
+
+- `public/sw.js` must never cache or answer `/sheet-data`, `/concerns-data`, `/api/*` or any non-GET / cross-origin request (data is private). It must also not answer the app's own `fetch('/', { cache: 'no-store' })` new-version check from the cache.
+- It is registered only in production (`src/main.ts`). Test it on the deployed site or `npm run build` + a static server, not `npm run dev`.
+- After changing what the worker caches, bump `CACHE` in `sw.js`.
+
 ## Local development notes
 
 - `npm run dev` needs a `.env` (see `.env.example`) for real sign-in. On localhost the app bypasses sign-in; use `?preview=login`, `?preview=profile`, `?preview=pending` or `?preview=denied` to see those screens.

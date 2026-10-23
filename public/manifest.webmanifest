@@ -1,0 +1,16 @@
+{
+  "name": "4Ps Enhanced Support Services Intervention",
+  "short_name": "4Ps ESSI",
+  "description": "DSWD 4Ps Regional Program Management Office monitoring dashboard",
+  "lang": "en-PH",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fd",
+  "theme_color": "#4338ca",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
