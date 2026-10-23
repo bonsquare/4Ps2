@@ -559,7 +559,7 @@ function makeCharts() {
     })
     secondChart.setOption({
       grid: { left: 48, right: 20, top: 38, bottom: 36 }, tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: ['Target', 'Accomplished', 'Remaining'], axisLabel: text },
+      xAxis: { type: 'category', data: ['Target', 'Accomplished to Date', 'Remaining Target'], axisLabel: text },
       yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{ type: 'bar', barWidth: '42%', data: [
         { value: displayMetrics.value.target, itemStyle: { color: '#3b82f6', borderRadius: [6, 6, 0, 0] } },
@@ -783,38 +783,38 @@ onBeforeUnmount(() => {
     </header>
     <aside class="sidebar" :class="{ open: menuOpen }">
       <nav aria-label="Main navigation">
-        <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional overview</button>
-        <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial view' : 'Provincial dashboard' }}</button>
-        <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & printing</button>
+        <button v-if="role === 'regional'" :class="{ active: activeView === 'overview' }" @click="navigate('overview')"><i>⌂</i>Regional Overview</button>
+        <button :class="{ active: activeView === 'province' }" @click="navigate('province')"><i>▦</i>{{ role === 'regional' ? 'Provincial Overview' : 'Provincial Dashboard' }}</button>
+        <button :class="{ active: activeView === 'reports' }" @click="navigate('reports')"><i>▤</i>Reports & Printing</button>
         <button :class="{ active: activeView === 'concerns' }" @click="navigate('concerns')"><i>✎</i>ESSI Community Support<span v-if="concernCounts.open" class="notify-dot soft" :aria-label="`${concernCounts.open} open concerns`">{{ concernCounts.open }}</span></button>
-        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User management<span v-if="profileCounts.pending" class="notify-dot" :aria-label="`${profileCounts.pending} pending access requests`">{{ profileCounts.pending }}</span></button>
+        <button v-if="superAdmin" :class="{ active: activeView === 'approvals' }" @click="navigate('approvals')"><i>☺</i>User Management<span v-if="profileCounts.pending" class="notify-dot" :aria-label="`${profileCounts.pending} pending access requests`">{{ profileCounts.pending }}</span></button>
       </nav>
     </aside>
 
     <main class="content">
       <template v-if="activeView !== 'reports' && activeView !== 'approvals' && activeView !== 'concerns'">
         <section class="page-heading">
-          <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
+          <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional Overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
           <div class="heading-actions">
             <label v-if="role === 'regional' && isProvinceView">Province<select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
             <label v-if="isProvinceView">Municipality<select v-model="municipality"><option value="all">All municipalities</option><option v-for="item in municipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Reporting period<select v-model="period"><option>Today</option><option>This week</option><option>This month</option></select></label>
-            <button class="refresh-button" :disabled="refreshing" @click="refreshData">{{ refreshing ? 'Refreshing…' : 'Refresh data' }}</button>
+            <button class="refresh-button" :disabled="refreshing" @click="refreshData">{{ refreshing ? 'Refreshing…' : 'Refresh Data' }}</button>
           </div>
         </section>
         <div v-if="dataError" class="connection-error" role="alert">Live Google Sheets connection failed: {{ dataError }}. The last available values remain on screen.</div>
         <section class="metrics" aria-label="Performance summary">
-          <article><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial target') : 'Regional target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
-          <article><span>Accomplished</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
-          <article><span>Remaining</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
-          <article><span>Completion</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
-          <article><span>Today's accomplishment</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
+          <article><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial Target') : 'Regional Target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
+          <article><span>Accomplished to Date</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
+          <article><span>Remaining Target</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
+          <article><span>Completion Rate</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
+          <article><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily accomplishment' : 'Provincial performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target compared with actual' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. actual' : 'Regional daily output' }}</h2><p>{{ isProvinceView ? period : rangeNote(dailyMap) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : rangeNote(dailyMap) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">Dates come from the sheet's Date column. Rows with no date are counted on the day they were first detected.</p></article>
         </section>
-        <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished</th><th>Remaining</th><th>Completion</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td class="completion-cell"><div class="completion-wrap"><div class="mini-bar"><span :style="{ width: `${completionOf(item)}%` }"></span></div><strong>{{ item.target ? `${completionOf(item)}%` : '—' }}</strong></div></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
+        <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial Performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished to Date</th><th>Remaining Target</th><th>Completion Rate</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td class="completion-cell"><div class="completion-wrap"><div class="mini-bar"><span :style="{ width: `${completionOf(item)}%` }"></span></div><strong>{{ item.target ? `${completionOf(item)}%` : '—' }}</strong></div></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
@@ -866,7 +866,7 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else-if="activeView === 'reports'">
-        <section class="page-heading"><div><p class="breadcrumb">Reports & printing</p><h1>Report Center</h1><p>Build a target vs. actual or payment-mode report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
+        <section class="page-heading"><div><p class="breadcrumb">Reports & Printing</p><h1>Report Center</h1><p>Build a target vs. actual or payment-mode report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
         <section class="report-layout">
           <aside class="report-controls card"><h2>Report settings</h2>
             <div class="coverage-box"><span class="coverage-title">Date coverage</span>
@@ -887,8 +887,8 @@ onBeforeUnmount(() => {
             <div class="report-title"><h2>{{ reportHeading }}</h2><p>{{ reportScopeText }}</p><p class="report-coverage"><strong>Date coverage:</strong> {{ coverageText }} · As of {{ reportStamp }}</p></div>
 
             <template v-if="reportType === 'target'">
-              <div class="report-kpis"><div><span>Target beneficiaries</span><strong>{{ number.format(report.total.target) }}</strong></div><div><span>Actual (validated{{ coverage.from || coverage.to ? ' in coverage' : '' }})</span><strong>{{ number.format(report.total.actual) }}</strong></div><div><span>Remaining</span><strong>{{ number.format(report.total.remaining) }}</strong></div><div><span>Completion</span><strong>{{ report.total.percent }}%</strong></div></div>
-              <table class="report-table"><thead><tr><th>{{ report.childLabel }}</th><th>Target</th><th>Actual</th><th>Remaining</th><th>Completion</th></tr></thead>
+              <div class="report-kpis"><div><span>Target beneficiaries</span><strong>{{ number.format(report.total.target) }}</strong></div><div><span>Actual (validated{{ coverage.from || coverage.to ? ' in coverage' : '' }})</span><strong>{{ number.format(report.total.actual) }}</strong></div><div><span>Remaining Target</span><strong>{{ number.format(report.total.remaining) }}</strong></div><div><span>Completion Rate</span><strong>{{ report.total.percent }}%</strong></div></div>
+              <table class="report-table"><thead><tr><th>{{ report.childLabel }}</th><th>Target</th><th>Actual</th><th>Remaining Target</th><th>Completion Rate</th></tr></thead>
                 <tbody><tr v-for="row in report.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ number.format(row.target) }}</td><td>{{ number.format(row.actual) }}</td><td>{{ number.format(row.remaining) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${row.percent}%` }"></i></span>{{ row.percent }}%</td></tr></tbody>
                 <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th><th>{{ report.total.percent }}%</th></tr></tfoot></table>
             </template>
@@ -944,7 +944,7 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else>
-        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles()">{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
+        <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User Management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles()">{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
         <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div></section>
       </template>
     </main>
