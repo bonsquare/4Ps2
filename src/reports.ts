@@ -24,6 +24,13 @@ export type Report = {
   modeShare: Array<{ mode: string; count: number; percent: number }>
 }
 
+export type PaymentInsights = {
+  leadingMode: { name: string; count: number; percent: number }
+  highestAccomplishment: { name: string; count: number }
+  largestBacklog: { name: string; count: number }
+  validatedPercent: number
+}
+
 const percentOf = (actual: number, target: number) => (target ? Math.round((actual / target) * 1000) / 10 : 0)
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 
@@ -77,6 +84,24 @@ export function buildReport(records: ReviewRecord[], scope: ReportScope, coverag
     total,
     modes,
     modeShare: modes.map((mode) => ({ mode, count: total.modes[mode], percent: percentOf(total.modes[mode], total.actual) })),
+  }
+}
+
+export function buildPaymentInsights(report: Report): PaymentInsights {
+  const leadingMode = report.modeShare[0]
+  const highest = report.rows.reduce<ReportRow | undefined>((best, row) => !best || row.actual > best.actual ? row : best, undefined)
+  const backlog = report.rows.reduce<ReportRow | undefined>((best, row) => !best || row.remaining > best.remaining ? row : best, undefined)
+  return {
+    leadingMode: leadingMode
+      ? { name: leadingMode.mode, count: leadingMode.count, percent: report.total.actual ? Math.round((leadingMode.count / report.total.actual) * 10000) / 100 : 0 }
+      : { name: 'No validated mode yet', count: 0, percent: 0 },
+    highestAccomplishment: highest && highest.actual
+      ? { name: highest.name, count: highest.actual }
+      : { name: 'No accomplishment yet', count: 0 },
+    largestBacklog: backlog && backlog.remaining
+      ? { name: backlog.name, count: backlog.remaining }
+      : { name: 'No backlog', count: 0 },
+    validatedPercent: report.total.percent,
   }
 }
 

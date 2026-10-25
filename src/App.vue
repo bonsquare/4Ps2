@@ -7,7 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
-import { beneficiaryList, buildReport, type ReportScope } from './reports'
+import { beneficiaryList, buildPaymentInsights, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
@@ -391,6 +391,7 @@ const paymentReport = computed(() => {
   const order = (name: string) => provinces.findIndex((item) => item.name === name)
   return { ...report, rows: [...report.rows].sort((a, b) => order(a.name) - order(b.name)) } // same province order as the other chart
 })
+const paymentInsights = computed(() => buildPaymentInsights(paymentReport.value))
 const modeColors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 const modeColor = (index: number) => modeColors[index % modeColors.length]
 function openPaymentReport() {
@@ -870,9 +871,20 @@ onBeforeUnmount(() => {
               <div v-if="paymentReport.modes.length" ref="chartMode" class="chart"></div>
               <p v-else class="chart-note">No validated beneficiaries yet, so there is no payment mode to chart.</p>
             </div>
-            <div class="table-scroll"><table class="mode-table"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For Validation</th></tr></thead>
-              <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
-              <tfoot><tr><th>Total</th><th>{{ number.format(paymentReport.total.target) }}</th><th v-for="mode in paymentReport.modes" :key="mode">{{ number.format(paymentReport.total.modes[mode] ?? 0) }}</th><th>{{ number.format(paymentReport.total.actual) }} <small>{{ paymentReport.total.percent }}%</small></th><th>{{ number.format(paymentReport.total.remaining) }}</th></tr></tfoot></table></div>
+            <div class="payment-details">
+              <div class="table-scroll"><table class="mode-table"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For Validation</th></tr></thead>
+                <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
+                <tfoot><tr><th>Total</th><th>{{ number.format(paymentReport.total.target) }}</th><th v-for="mode in paymentReport.modes" :key="mode">{{ number.format(paymentReport.total.modes[mode] ?? 0) }}</th><th>{{ number.format(paymentReport.total.actual) }} <small>{{ paymentReport.total.percent }}%</small></th><th>{{ number.format(paymentReport.total.remaining) }}</th></tr></tfoot></table></div>
+              <aside class="payment-insights" aria-labelledby="payment-insights-title">
+                <div class="insights-heading"><div><span>Live summary</span><h3 id="payment-insights-title">Payment insights</h3></div><strong>{{ paymentReport.total.percent }}% validated</strong></div>
+                <div class="insight-cards">
+                  <article class="insight-card leading"><span>Leading payment mode</span><strong>{{ paymentInsights.leadingMode.name }}</strong><small>{{ number.format(paymentInsights.leadingMode.count) }} beneficiaries · {{ formatPaymentShare(paymentInsights.leadingMode.percent) }}</small></article>
+                  <article class="insight-card accomplished"><span>Highest accomplishment</span><strong>{{ paymentInsights.highestAccomplishment.name }}</strong><small>{{ number.format(paymentInsights.highestAccomplishment.count) }} validated beneficiaries</small></article>
+                  <article class="insight-card backlog"><span>Largest validation backlog</span><strong>{{ paymentInsights.largestBacklog.name }}</strong><small>{{ number.format(paymentInsights.largestBacklog.count) }} for validation</small></article>
+                </div>
+                <div class="insights-progress" aria-label="Overall validation progress"><span :style="{ width: `${Math.min(paymentInsights.validatedPercent, 100)}%` }"></span></div>
+              </aside>
+            </div>
           </div>
         </section>
         <section class="card review-table" aria-labelledby="review-title">

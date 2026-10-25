@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beneficiaryList, buildReport } from './reports'
+import { beneficiaryList, buildPaymentInsights, buildReport } from './reports'
 import type { ReviewRecord } from './sheets'
 
 const blank = {
@@ -51,6 +51,28 @@ describe('buildReport', () => {
     expect(report.total.modes).toEqual({ GCash: 2, VISA: 1, Paymaya: 1 })
     expect(report.rows[0].modes).toEqual({ GCash: 2, VISA: 1 })
     expect(report.modeShare[0]).toEqual({ mode: 'GCash', count: 2, percent: 50 })
+  })
+})
+
+describe('buildPaymentInsights', () => {
+  it('summarizes the leading mode, highest accomplishment and largest validation backlog', () => {
+    const insights = buildPaymentInsights(buildReport(records, {}))
+
+    expect(insights).toEqual({
+      leadingMode: { name: 'GCash', count: 2, percent: 50 },
+      highestAccomplishment: { name: 'Davao del Sur', count: 3 },
+      largestBacklog: { name: 'Davao del Sur', count: 1 },
+      validatedPercent: 66.7,
+    })
+  })
+
+  it('returns safe empty values when there are no report records', () => {
+    expect(buildPaymentInsights(buildReport([], {}))).toEqual({
+      leadingMode: { name: 'No validated mode yet', count: 0, percent: 0 },
+      highestAccomplishment: { name: 'No accomplishment yet', count: 0 },
+      largestBacklog: { name: 'No backlog', count: 0 },
+      validatedPercent: 0,
+    })
   })
 })
 
