@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { init, use, type ECharts } from 'echarts/core'
-import { BarChart, LineChart } from 'echarts/charts'
-import { DataZoomComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import { DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
@@ -12,7 +12,7 @@ import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 
-use([BarChart, LineChart, DataZoomComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 // Local-only shortcut: `npm run dev` on localhost skips Google sign-in. import.meta.env.DEV is false in production
 // builds, so this branch is removed from the deployed bundle.
@@ -171,8 +171,10 @@ const reviewRemarks = ref<'all' | 'with' | 'without'>('all')
 const selectedReviewRecord = ref<ReviewRecord | null>(null)
 const chartOne = ref<HTMLElement | null>(null)
 const chartTwo = ref<HTMLElement | null>(null)
+const chartMode = ref<HTMLElement | null>(null)
 let firstChart: ECharts | null = null
 let secondChart: ECharts | null = null
+let modeChart: ECharts | null = null
 let refreshTimer: number | undefined
 let unsubscribeAuth: (() => void) | undefined
 let turnstileWidgetId: string | undefined
@@ -381,6 +383,26 @@ async function signInWithGoogleCredential(response: { credential: string }) {
 
 // ---- Report Center: target vs. actual and payment-mode reports for the region, a province or a municipality ----
 const reportType = ref<'target' | 'payment'>('target')
+// Overview card: accomplished beneficiaries by payment mode. Regional view lists provinces; Provincial view lists the selected province's municipalities.
+const paymentReport = computed(() => {
+  const report = buildReport(reviewRecords.value, isProvinceView.value ? { province: selectedProvince.value.name } : {})
+  if (isProvinceView.value) return report
+  const order = (name: string) => provinces.findIndex((item) => item.name === name)
+  return { ...report, rows: [...report.rows].sort((a, b) => order(a.name) - order(b.name)) } // same province order as the other chart
+})
+const modeColors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
+const modeColor = (index: number) => modeColors[index % modeColors.length]
+function openPaymentReport() {
+  reportType.value = 'payment'
+  if (isProvinceView.value) { reportLevel.value = 'provincial'; reportProvince.value = selectedProvince.value.name }
+  navigate('reports')
+}
+// Region: open that province. Province: filter the dashboard to that municipality.
+function openPaymentRow(name: string) {
+  if (isProvinceView.value) { municipality.value = municipality.value === name ? 'all' : name; return }
+  selectedProvinceId.value = provinces.find((item) => item.name === name)?.id ?? selectedProvinceId.value
+  navigate('province')
+}
 const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
 const reportProvince = ref('')
 const reportMunicipality = ref('')
@@ -534,14 +556,15 @@ async function logout() {
   }
   authBusy.value = false
   menuOpen.value = false
-  firstChart?.dispose(); secondChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
 }
 
 function makeCharts() {
-  firstChart?.dispose(); secondChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
   if (!chartOne.value || !chartTwo.value || activeView.value === 'reports') return
   firstChart = init(chartOne.value)
   secondChart = init(chartTwo.value)
+  makePaymentCharts()
   const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
   if (isProvinceView.value) {
     const p = selectedProvince.value
@@ -599,7 +622,33 @@ function makeCharts() {
   }
 }
 
-function handleResize() { firstChart?.resize(); secondChart?.resize() }
+function makePaymentCharts() {
+  if (!chartMode.value) return
+  const { modes, modeShare, total } = paymentReport.value
+  if (!modes.length) return
+  const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
+  modeChart = init(chartMode.value)
+  const narrow = chartMode.value.clientWidth < 360
+  modeChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0, textStyle: { ...text, fontWeight: 600, fontSize: 13 }, itemWidth: 14, itemHeight: 14 },
+    series: [{
+      type: 'pie', radius: narrow ? ['34%', '48%'] : ['42%', '60%'], center: ['50%', '45%'], avoidLabelOverlap: true,
+      itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
+      label: { position: 'outside', color: '#24364b', fontWeight: 700, fontSize: narrow ? 12 : 13, formatter: '{d}%' },
+      labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: '#94a3b8' } },
+      data: modeShare.map((item) => ({ name: item.mode, value: item.count, itemStyle: { color: modeColor(modes.indexOf(item.mode)) } })),
+    }],
+    graphic: [
+      { type: 'text', left: 'center', top: narrow ? '36%' : '32%', style: { text: number.format(total.actual), textAlign: 'center', fill: '#24364b', fontSize: narrow ? 22 : 30, fontWeight: 800 } },
+      { type: 'text', left: 'center', top: narrow ? '45%' : '42%', style: { text: 'validated', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 13, fontWeight: 600 } },
+      { type: 'text', left: 'center', top: narrow ? '50%' : '47%', style: { text: `${total.percent}%`, textAlign: 'center', fill: '#047857', fontSize: narrow ? 14 : 18, fontWeight: 800 } },
+      { type: 'text', left: 'center', top: narrow ? '55.5%' : '53%', style: { text: 'of target', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 12, fontWeight: 600 } },
+    ],
+  })
+}
+
+function handleResize() { firstChart?.resize(); secondChart?.resize(); modeChart?.resize() }
 
 // force skips the server cache so the Refresh button always pulls live sheet data.
 async function loadGoogleSheets(force = false) {
@@ -696,7 +745,7 @@ onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer)
   window.clearInterval(clockTimer)
   unsubscribeAuth?.()
-  firstChart?.dispose(); secondChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
 })
 </script>
 
@@ -813,7 +862,16 @@ onBeforeUnmount(() => {
           <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
           <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : rangeNote(dailyMap) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
         </section>
-        <section v-if="!isProvinceView" class="card performance-table"><header><div><h2>Provincial Performance</h2><p>Detailed regional comparison</p></div><button @click="navigate('reports')">Open report</button></header><div class="table-scroll"><table><thead><tr><th>Province</th><th>Target</th><th>Accomplished to Date</th><th>Remaining Target</th><th>Completion Rate</th></tr></thead><tbody><tr v-for="item in provinces" :key="item.id" @click="selectedProvinceId = item.id; navigate('province')"><td><strong>{{ item.name }}</strong></td><td>{{ item.target ? number.format(item.target) : 'Not set' }}</td><td>{{ number.format(item.accomplished) }}</td><td>{{ item.target ? number.format(item.target - item.accomplished) : '—' }}</td><td class="completion-cell"><div class="completion-wrap"><div class="mini-bar"><span :style="{ width: `${completionOf(item)}%` }"></span></div><strong>{{ item.target ? `${completionOf(item)}%` : '—' }}</strong></div></td></tr></tbody><tfoot><tr><th>Regional total</th><th>{{ totals.target ? number.format(totals.target) : 'Not set' }}</th><th>{{ number.format(totals.accomplished) }}</th><th>{{ totals.target ? number.format(totals.remaining) : '—' }}</th><th>{{ totals.percentage === null ? '—' : `${totals.percentage}%` }}</th></tr></tfoot></table></div></section>
+        <section class="card payment-report">
+          <header><div><h2>Mode of Payment</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province' }} · accomplished beneficiaries per payment mode</p></div><button @click="openPaymentReport()">Open report</button></header>
+          <div class="payment-grid">
+            <div class="table-scroll"><table class="mode-table"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For Validation</th></tr></thead>
+              <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
+              <tfoot><tr><th>Total</th><th>{{ number.format(paymentReport.total.target) }}</th><th v-for="mode in paymentReport.modes" :key="mode">{{ number.format(paymentReport.total.modes[mode] ?? 0) }}</th><th>{{ number.format(paymentReport.total.actual) }} <small>{{ paymentReport.total.percent }}%</small></th><th>{{ number.format(paymentReport.total.remaining) }}</th></tr></tfoot></table></div>
+            <div v-if="paymentReport.modes.length" ref="chartMode" class="chart"></div>
+            <p v-else class="chart-note">No validated beneficiaries yet, so there is no payment mode to chart.</p>
+          </div>
+        </section>
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
           <div class="review-filters">
