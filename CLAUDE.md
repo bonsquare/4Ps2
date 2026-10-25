@@ -7,7 +7,7 @@ Vue 3 + TypeScript + Vite dashboard for the DSWD 4Ps ESSI program (Davao Region)
 ```bash
 npm install
 npm run dev     # Vite on http://localhost:5173 (skips Google sign-in on localhost)
-npm test        # vitest run (41 tests)
+npm test        # vitest run (47 tests)
 npm run build   # vue-tsc -b && vite build
 npx vue-tsc -b  # type-check only
 ```
@@ -31,6 +31,8 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 - Never put a Supabase service-role key in the app. Only the public anon key is used.
 - Province/office on a profile is a label only; it does not scope data.
 - Keep user-facing labels in Title Case as in the sidebar and cards (e.g. "Provincial Overview", "Accomplished to Date", "Remaining Target", "Completion Rate", "Completed Today", "Reports & Printing", "Refresh Data"). "Regional Overview", "Regional Target" and "Provincial Performance" are fixed.
+- Mode of Payment card: keep the donut large and on the left at desktop widths, with the table and Live Summary on the right. Preserve two-decimal donut shares and keep outside labels within the chart canvas. The payment columns and legend must remain data-driven so new modes appear without code changes.
+- Payment insight calculations belong in `buildPaymentInsights` (`src/reports.ts`), not duplicated in the Vue template. The largest-backlog insight uses the red warning palette in `src/refresh.css`.
 - Login page: picture panel on the left, sign-in on the right (`order: -1` on `.login-context`). The picture (`public/login-bg.webp`) is the whole panel background via `.login-context::before`. Do not add blur, fade, tint, gradient or other color layers over it, and keep the text off any solid card. The program name "Pantawid Pamilyang Pilipino Program" must stay the largest text on the picture panel.
 
 ## PWA
@@ -43,7 +45,7 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 
 - `npm run dev` needs a `.env` (see `.env.example`) for real sign-in. On localhost the app bypasses sign-in; use `?preview=login`, `?preview=profile`, `?preview=pending` or `?preview=denied` to see those screens.
 - The dev server passes an empty first-seen map (`vite.config.ts`), so accomplished rows show today as their validation date locally.
-- The built-in browser pane may refuse localhost; use the real browser or a static mock to check visuals.
+- Use the built-in browser pane or a real browser to check responsive visuals at the actual dashboard width.
 
 ## Git and deploy
 

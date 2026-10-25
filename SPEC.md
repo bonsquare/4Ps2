@@ -22,11 +22,19 @@ Live site: https://4-ps2.vercel.app · Repo: https://github.com/bonsquare/4Ps2 (
 All screens work on phones (verified on Android). On screens up to 760px wide the top bar is compact (logo, short title, clock, a "Live" dot, avatar), the metric cards sit two per row with an odd last card spanning the row, and the sidebar becomes a slide-in menu. Phone styles live in `src/mobile.css`.
 
 1. **Login / Register** — picture panel on the left, sign-in card on the right with a **Sign in | Register** switch. Register uses the same Turnstile + Google flow, then the profile form. The left panel is one crisp picture (4Ps social worker in a red vest with a mother and child) with no blur, fade or color overlay. Three lines sit on its sky: "Pantawid Pamilyang Pilipino Program" (largest), "Enhanced Support Services Intervention", and "Regional Program Management Office Monitoring" (outlined badge).
-2. **Regional Overview** — Regional Target, Accomplishment to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments) and Regional Daily Output charts.
-3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, beneficiary review list with filters, record detail dialog.
+2. **Regional Overview** — Regional Target, Accomplishment to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments), Regional Daily Output, and Mode of Payment reporting.
+3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, Mode of Payment reporting, beneficiary review list with filters, record detail dialog.
 4. **Reports & Printing** — Report Center: target vs. actual and payment-mode reports by region / province / municipality, date coverage, printable (browser print dialog, white background).
 5. **ESSI Community Support** — concerns backed by its own Google Sheet.
 6. **User management** — approvals queue (Super Administrator only).
+
+### Mode of Payment dashboard card
+
+- On wide screens, a large payment-share donut stays on the left and the province/municipality data stays on the right. On narrower screens they stack so no chart label or table value is clipped.
+- Donut labels remain inside the chart canvas and always show two decimal places. The legend and table are generated from the payment modes found in validated records, so newly introduced modes appear automatically.
+- The table includes Target, each payment mode, Validated, and a wrapped **For Validation** heading. Validated rows show the accomplishment rate; For Validation is target minus validated.
+- A **Live Summary** below the table fills the remaining desktop space with the leading payment mode, highest accomplishment, largest validation backlog, and overall validation progress. The backlog insight uses red warning styling.
+- Summary values come from the same computed report as the table and donut; the card does not maintain a separate data source.
 
 ## Data
 
@@ -36,6 +44,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 ### Definitions
 - **Target** = number of rows with a valid `Entry_id` in a province worksheet.
 - **Accomplished / validated** = row has a non-empty value in the **Mode of Payment** column (S). Confirmed by the program office: every mode counts (GCash, PayMaya, PISO Plus, Visa and any other).
+- Payment-mode names are matched without regard to case or extra spaces, displayed using the first encountered spelling, and ordered by validated beneficiary count.
 - **Remaining** = max(target − accomplished, 0). **Completion rate** = accomplished ÷ target, one decimal.
 - **Validation date** = the day the system **first saw** the row as accomplished (stored in `accomplishment_log.first_seen`, Asia/Manila date). The sheet has no validation date.
 - **Column T** ("Date Claimed/Account Opened (LBP servicing Branch)") is the date the bank account was opened, **not** a validation date. It must not drive daily counts, Completed Today or the validation date. It is only shown in record details as "Date claimed / account opened".
