@@ -11,7 +11,7 @@ import { beneficiaryList, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
-import { ACCOMPLISHMENT_TO_DATE, PAYMENT_DONUT_GRAPHIC_Z, paymentDonutLabelLine, paymentDonutRadius } from './charts'
+import { ACCOMPLISHMENT_TO_DATE, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, paymentDonutLabelLine, paymentDonutRadius } from './charts'
 
 use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -629,7 +629,7 @@ function makePaymentCharts() {
   if (!modes.length) return
   const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
   modeChart = init(chartMode.value)
-  const narrow = chartMode.value.clientWidth < 360
+  const narrow = isNarrowPaymentChart(chartMode.value.clientWidth)
   modeChart.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, textStyle: { ...text, fontWeight: 600, fontSize: 13 }, itemWidth: 14, itemHeight: 14 },
