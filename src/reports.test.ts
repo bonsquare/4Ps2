@@ -63,6 +63,7 @@ describe('buildPaymentInsights', () => {
       highestAccomplishment: { name: 'Davao del Sur', count: 3 },
       largestBacklog: { name: 'Davao del Sur', count: 1 },
       validatedPercent: 66.7,
+      progressLabel: '4 of 6 beneficiaries validated',
     })
   })
 
@@ -72,6 +73,7 @@ describe('buildPaymentInsights', () => {
       highestAccomplishment: { name: 'No accomplishment yet', count: 0 },
       largestBacklog: { name: 'No backlog', count: 0 },
       validatedPercent: 0,
+      progressLabel: '0 of 0 beneficiaries validated',
     })
   })
 })

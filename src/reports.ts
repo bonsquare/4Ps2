@@ -29,6 +29,7 @@ export type PaymentInsights = {
   highestAccomplishment: { name: string; count: number }
   largestBacklog: { name: string; count: number }
   validatedPercent: number
+  progressLabel: string
 }
 
 const percentOf = (actual: number, target: number) => (target ? Math.round((actual / target) * 1000) / 10 : 0)
@@ -102,6 +103,7 @@ export function buildPaymentInsights(report: Report): PaymentInsights {
       ? { name: backlog.name, count: backlog.remaining }
       : { name: 'No backlog', count: 0 },
     validatedPercent: report.total.percent,
+    progressLabel: `${report.total.actual.toLocaleString('en-US')} of ${report.total.target.toLocaleString('en-US')} beneficiaries validated`,
   }
 }
 
