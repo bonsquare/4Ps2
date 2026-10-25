@@ -11,7 +11,7 @@ import { beneficiaryList, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
-import { ACCOMPLISHMENT_TO_DATE, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, paymentDonutLabelLine, paymentDonutRadius } from './charts'
+import { ACCOMPLISHMENT_TO_DATE, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
 
 use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -636,7 +636,7 @@ function makePaymentCharts() {
     series: [{
       type: 'pie', radius: paymentDonutRadius(chartMode.value.clientWidth), center: ['50%', '45%'], avoidLabelOverlap: true,
       itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
-      label: { position: 'outside', color: '#24364b', fontWeight: 700, fontSize: narrow ? 11 : 13, formatter: '{d}%' },
+      label: { position: 'outside', ...PAYMENT_DONUT_LABEL_LAYOUT, color: '#24364b', fontWeight: 700, fontSize: narrow ? 11 : 13, formatter: '{d}%' },
       labelLine: { show: true, ...paymentDonutLabelLine(chartMode.value.clientWidth), lineStyle: { color: '#94a3b8' } },
       data: modeShare.map((item) => ({ name: item.mode, value: item.count, itemStyle: { color: modeColor(modes.indexOf(item.mode)) } })),
     }],
