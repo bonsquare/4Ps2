@@ -326,7 +326,9 @@ img.report-seal { height: 64px; }
 /* Mode of Payment card on the Regional Overview: province breakdown table with a share donut.
    The donut sits under the table by default (so both get the full width) and beside it on wide screens. */
 .payment-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; margin-top: 12px; align-items: center; }
-.payment-grid .chart { width: 100%; max-width: 560px; height: 400px; min-width: 0; margin: 0 auto; }
+.payment-visual { width: 100%; max-width: 560px; min-width: 0; margin: 0 auto; border: 1px solid rgba(99, 102, 241, .12); border-radius: 18px; background: radial-gradient(circle at 50% 42%, #fff 0%, #f8faff 72%); overflow: hidden; }
+.payment-grid .chart { width: 100%; max-width: none; height: 460px; min-width: 0; margin: 0; }
+.payment-visual .chart-note { display: grid; place-items: center; min-height: 220px; padding: 24px; text-align: center; }
 .payment-report .chart-note { margin: 14px 0 6px; }
 .payment-report header button { border: 0; background: transparent; color: #1d5b91; font-weight: 750; }
 .mode-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid #cfd8ee; border-radius: 12px; overflow: hidden; }
@@ -346,10 +348,10 @@ img.report-seal { height: 64px; }
 .mode-bar { display: inline-block; width: 40px; height: 6px; margin-left: 8px; border-radius: 99px; background: #e3e8f4; vertical-align: middle; overflow: hidden; }
 .mode-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #2563eb, #10b981); }
 .pending-cell { color: #b45309; font-weight: 700; }
-/* Compact side-by-side layout on laptops; the chart grows on wide desktop screens. */
+/* The donut is the visual anchor; the table keeps the larger share for dense data. */
 @media (min-width: 1180px) {
-  .payment-grid { grid-template-columns: 380px minmax(0, 1fr); gap: 16px; }
-  .payment-grid .chart { max-width: none; height: 420px; }
+  .payment-grid { grid-template-columns: minmax(380px, 38%) minmax(0, 62%); gap: 20px; align-items: stretch; }
+  .payment-visual { max-width: none; display: grid; align-items: center; }
   .mode-table { font-size: 12.5px; }
   .mode-table th { padding: 9px 5px; font-size: 10.5px; }
   .mode-table td { padding: 9px 5px; }
@@ -357,15 +359,11 @@ img.report-seal { height: 64px; }
   .mode-bar { display: none; }
 }
 @media (min-width: 1400px) {
-  .payment-grid { grid-template-columns: 420px minmax(0, 1fr); }
   .mode-table { font-size: 13px; }
   .mode-table th { padding: 10px 6px; font-size: 11px; }
   .mode-table td { padding: 10px 6px; }
   .mode-table td:first-child { white-space: nowrap; }
   .mode-bar { display: inline-block; width: 30px; margin-left: 6px; }
-}
-@media (min-width: 1600px) {
-  .payment-grid { grid-template-columns: 480px minmax(0, 1fr); gap: 20px; }
 }
 
 /* Beneficiary review filters (Regional and Provincial): one tinted panel, a fixed column grid, a toolbar underneath. */
