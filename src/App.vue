@@ -11,6 +11,7 @@ import { beneficiaryList, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
+import { ACCOMPLISHMENT_TO_DATE, PAYMENT_DONUT_GRAPHIC_Z, paymentDonutRadius } from './charts'
 
 use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -583,7 +584,7 @@ function makeCharts() {
     })
     secondChart.setOption({
       grid: { left: 48, right: 20, top: 38, bottom: 36 }, tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: ['Target', 'Accomplished to Date', 'Remaining Target'], axisLabel: text },
+      xAxis: { type: 'category', data: ['Target', ACCOMPLISHMENT_TO_DATE, 'Remaining Target'], axisLabel: text },
       yAxis: { type: 'value', axisLabel: text, splitLine: { lineStyle: { color: '#edf1f5' } } },
       series: [{ type: 'bar', barWidth: '42%', data: [
         { value: displayMetrics.value.target, itemStyle: { color: '#3b82f6', borderRadius: [6, 6, 0, 0] } },
@@ -633,17 +634,17 @@ function makePaymentCharts() {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, textStyle: { ...text, fontWeight: 600, fontSize: 13 }, itemWidth: 14, itemHeight: 14 },
     series: [{
-      type: 'pie', radius: narrow ? ['34%', '48%'] : ['42%', '60%'], center: ['50%', '45%'], avoidLabelOverlap: true,
+      type: 'pie', radius: paymentDonutRadius(chartMode.value.clientWidth), center: ['50%', '45%'], avoidLabelOverlap: true,
       itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
       label: { position: 'outside', color: '#24364b', fontWeight: 700, fontSize: narrow ? 12 : 13, formatter: '{d}%' },
       labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: '#94a3b8' } },
       data: modeShare.map((item) => ({ name: item.mode, value: item.count, itemStyle: { color: modeColor(modes.indexOf(item.mode)) } })),
     }],
     graphic: [
-      { type: 'text', left: 'center', top: narrow ? '36%' : '32%', style: { text: number.format(total.actual), textAlign: 'center', fill: '#24364b', fontSize: narrow ? 22 : 30, fontWeight: 800 } },
-      { type: 'text', left: 'center', top: narrow ? '45%' : '42%', style: { text: 'validated', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 13, fontWeight: 600 } },
-      { type: 'text', left: 'center', top: narrow ? '50%' : '47%', style: { text: `${total.percent}%`, textAlign: 'center', fill: '#047857', fontSize: narrow ? 14 : 18, fontWeight: 800 } },
-      { type: 'text', left: 'center', top: narrow ? '55.5%' : '53%', style: { text: 'of target', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 12, fontWeight: 600 } },
+      { type: 'text', z: PAYMENT_DONUT_GRAPHIC_Z, left: 'center', top: narrow ? '36%' : '32%', style: { text: number.format(total.actual), textAlign: 'center', fill: '#24364b', fontSize: narrow ? 22 : 30, fontWeight: 800 } },
+      { type: 'text', z: PAYMENT_DONUT_GRAPHIC_Z, left: 'center', top: narrow ? '45%' : '42%', style: { text: 'validated', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 13, fontWeight: 600 } },
+      { type: 'text', z: PAYMENT_DONUT_GRAPHIC_Z, left: 'center', top: narrow ? '50%' : '47%', style: { text: `${total.percent}%`, textAlign: 'center', fill: '#047857', fontSize: narrow ? 14 : 18, fontWeight: 800 } },
+      { type: 'text', z: PAYMENT_DONUT_GRAPHIC_Z, left: 'center', top: narrow ? '55.5%' : '53%', style: { text: 'of target', textAlign: 'center', fill: '#6d7c8c', fontSize: narrow ? 10 : 12, fontWeight: 600 } },
     ],
   })
 }
@@ -853,7 +854,7 @@ onBeforeUnmount(() => {
         <div v-if="dataError" class="connection-error" role="alert">Live Google Sheets connection failed: {{ dataError }}. The last available values remain on screen.</div>
         <section class="metrics" aria-label="Performance summary">
           <article><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial Target') : 'Regional Target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
-          <article><span>Accomplished to Date</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
+          <article><span>{{ ACCOMPLISHMENT_TO_DATE }}</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
           <article><span>Remaining Target</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
           <article><span>Completion Rate</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
           <article><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
