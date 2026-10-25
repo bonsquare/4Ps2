@@ -333,6 +333,7 @@ img.report-seal { height: 64px; }
 .payment-report header button { border: 0; background: transparent; color: #1d5b91; font-weight: 750; }
 .mode-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid #cfd8ee; border-radius: 12px; overflow: hidden; }
 .mode-table th { padding: 12px 10px; background: #e8edfb; color: #1e2a55; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; text-align: center; border: 1px solid #cfd8ee; white-space: nowrap; }
+.mode-table th:last-child { min-width: 76px; white-space: normal; line-height: 1.2; }
 .mode-table td { padding: 12px 10px; text-align: center; border: 1px solid #dfe5f2; }
 .mode-table th:first-child, .mode-table td:first-child { text-align: left; white-space: nowrap; }
 .mode-table tbody tr { cursor: pointer; transition: background-color .2s var(--ease); }
