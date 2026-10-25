@@ -270,6 +270,46 @@ body { background:
 
 .page-heading h1 { padding-bottom: .12em; }
 
+/* Overview hero: clearer title hierarchy and one composed control surface. */
+.overview-heading { position: relative; isolation: isolate; align-items: center; padding: 22px 24px; border: 1px solid rgba(99, 102, 241, .14); border-radius: 22px; background: linear-gradient(120deg, rgba(255, 255, 255, .96), rgba(248, 250, 255, .92)); box-shadow: 0 14px 34px -24px rgba(67, 56, 202, .42); overflow: hidden; }
+.overview-heading::before { content: ""; position: absolute; z-index: -1; top: -92px; left: -70px; width: 260px; height: 210px; border-radius: 50%; background: radial-gradient(circle, rgba(59, 130, 246, .13), transparent 68%); }
+.overview-heading::after { content: ""; position: absolute; z-index: -1; right: 26%; bottom: -110px; width: 260px; height: 190px; border-radius: 50%; background: radial-gradient(circle, rgba(139, 92, 246, .11), transparent 68%); }
+.heading-copy { min-width: 240px; }
+.overview-heading .breadcrumb { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 9px; border: 1px solid rgba(124, 58, 237, .12); border-radius: 999px; background: rgba(124, 58, 237, .07); }
+.overview-heading .breadcrumb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, .12); }
+.overview-heading h1 { font-size: clamp(30px, 3.1vw, 40px); }
+.overview-heading .heading-actions { flex: 0 1 auto; align-items: flex-end; padding: 9px; border: 1px solid rgba(99, 102, 241, .13); border-radius: 18px; background: rgba(255, 255, 255, .78); box-shadow: 0 10px 26px -20px rgba(30, 58, 138, .55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.overview-heading .heading-actions label { min-width: 158px; }
+.overview-heading .heading-actions select, .overview-heading .refresh-button { min-height: 48px; }
+
+/* KPI strip: consistent iconography, quieter color and stronger numbers. */
+.overview-metrics { margin-bottom: 22px; }
+.overview-metrics article { min-height: 146px; padding: 22px 20px 19px; border-top: 1px solid color-mix(in srgb, var(--c) 20%, white); background: linear-gradient(155deg, color-mix(in srgb, var(--soft) 68%, white) 0%, #fff 68%); box-shadow: 0 12px 30px -22px color-mix(in srgb, var(--c) 52%, transparent); }
+.overview-metrics article::before { height: 3px; }
+.overview-metrics article::after { right: -42px; bottom: -52px; width: 132px; height: 132px; opacity: .65; }
+.overview-metrics .metric-icon { position: absolute; z-index: 2; top: 17px; right: 17px; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid color-mix(in srgb, var(--c) 20%, white); border-radius: 12px; background: color-mix(in srgb, var(--soft) 80%, white); color: var(--c); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75); }
+.overview-metrics .metric-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.overview-metrics article > span { max-width: calc(100% - 46px); line-height: 1.3; }
+.overview-metrics strong { margin-top: 14px; font-size: clamp(32px, 2.8vw, 42px); }
+.overview-metrics small { margin-top: auto; line-height: 1.35; }
+.overview-metrics .progress { height: 7px; margin-top: auto; box-shadow: inset 0 1px 2px rgba(67, 56, 202, .08); }
+
+@media (max-width: 1180px) {
+  .overview-heading { align-items: flex-start; }
+  .overview-heading .heading-actions { width: 100%; justify-content: flex-start; }
+}
+@media (max-width: 760px) {
+  .overview-heading { padding: 18px; border-radius: 18px; }
+  .overview-heading .heading-actions { padding: 8px; }
+  .overview-heading .heading-actions label { min-width: 0; }
+  .overview-metrics article { min-height: 112px; padding: 16px 14px 14px; }
+  .overview-metrics .metric-icon { top: 13px; right: 13px; width: 32px; height: 32px; border-radius: 10px; }
+  .overview-metrics .metric-icon svg { width: 17px; height: 17px; }
+  .overview-metrics article > span { max-width: calc(100% - 38px); }
+  .overview-metrics strong { margin-top: 9px; }
+}
+@media (prefers-reduced-transparency: reduce) { .overview-heading .heading-actions { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; } }
+
 /* 4Ps logo replaces the "XI" seal everywhere (login, topbar, printed report) */
 img.seal, img.mini-seal, img.report-seal { display: block; width: auto; border-radius: 0; background: none; box-shadow: none; object-fit: contain; }
 img.seal { height: 72px; margin-bottom: 22px; filter: drop-shadow(0 6px 14px rgba(236, 72, 153, .28)); }

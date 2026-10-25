@@ -843,8 +843,8 @@ onBeforeUnmount(() => {
 
     <main class="content">
       <template v-if="activeView !== 'reports' && activeView !== 'approvals' && activeView !== 'concerns'">
-        <section class="page-heading">
-          <div><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional Overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
+        <section class="page-heading overview-heading">
+          <div class="heading-copy"><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional Overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
           <div class="heading-actions">
             <label v-if="role === 'regional' && isProvinceView">Province<select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
             <label v-if="isProvinceView">Municipality<select v-model="municipality"><option value="all">All municipalities</option><option v-for="item in municipalities" :key="item" :value="item">{{ item }}</option></select></label>
@@ -853,12 +853,12 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <div v-if="dataError" class="connection-error" role="alert">Live Google Sheets connection failed: {{ dataError }}. The last available values remain on screen.</div>
-        <section class="metrics" aria-label="Performance summary">
-          <article><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial Target') : 'Regional Target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
-          <article><span>{{ ACCOMPLISHMENT_TO_DATE }}</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
-          <article><span>Remaining Target</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
-          <article><span>Completion Rate</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
-          <article><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
+        <section class="metrics overview-metrics" aria-label="Performance summary">
+          <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div><span>{{ isProvinceView ? (municipalityActive ? 'Municipal target' : 'Provincial Target') : 'Regional Target' }}</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.target) : 'Not set' }}</strong><small>{{ displayMetrics.target ? 'Valid beneficiary records' : 'No valid beneficiary records' }}</small></article>
+          <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/><circle cx="12" cy="12" r="9"/></svg></div><span>{{ ACCOMPLISHMENT_TO_DATE }}</span><strong class="green">{{ number.format(displayMetrics.accomplished) }}</strong><small>{{ displayMetrics.percentage === null ? 'Cash Card + E-Wallet rows' : `${displayMetrics.percentage}% of target` }}</small></article>
+          <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/><path d="M5 6v12"/></svg></div><span>Remaining Target</span><strong>{{ displayMetrics.target ? number.format(displayMetrics.remaining) : '—' }}</strong><small>{{ displayMetrics.target ? 'To reach target' : 'Target required' }}</small></article>
+          <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 18V9M12 18V5M19 18v-6"/><path d="M3 18h18"/></svg></div><span>Completion Rate</span><strong class="blue">{{ displayMetrics.percentage === null ? '—' : `${displayMetrics.percentage}%` }}</strong><div class="progress"><span :style="{ width: `${displayMetrics.percentage ?? 0}%` }"></span></div></article>
+          <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
           <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
