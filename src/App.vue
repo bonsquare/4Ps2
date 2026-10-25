@@ -866,11 +866,11 @@ onBeforeUnmount(() => {
         <section class="card payment-report">
           <header><div><h2>Mode of Payment</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province' }} · accomplished beneficiaries per payment mode</p></div><button @click="openPaymentReport()">Open report</button></header>
           <div class="payment-grid">
+            <div v-if="paymentReport.modes.length" ref="chartMode" class="chart"></div>
+            <p v-else class="chart-note">No validated beneficiaries yet, so there is no payment mode to chart.</p>
             <div class="table-scroll"><table class="mode-table"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For Validation</th></tr></thead>
               <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
               <tfoot><tr><th>Total</th><th>{{ number.format(paymentReport.total.target) }}</th><th v-for="mode in paymentReport.modes" :key="mode">{{ number.format(paymentReport.total.modes[mode] ?? 0) }}</th><th>{{ number.format(paymentReport.total.actual) }} <small>{{ paymentReport.total.percent }}%</small></th><th>{{ number.format(paymentReport.total.remaining) }}</th></tr></tfoot></table></div>
-            <div v-if="paymentReport.modes.length" ref="chartMode" class="chart"></div>
-            <p v-else class="chart-note">No validated beneficiaries yet, so there is no payment mode to chart.</p>
           </div>
         </section>
         <section class="card review-table" aria-labelledby="review-title">
