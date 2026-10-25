@@ -281,6 +281,11 @@ body { background:
 .overview-heading .heading-actions { flex: 0 1 auto; align-items: flex-end; padding: 9px; border: 1px solid rgba(99, 102, 241, .13); border-radius: 18px; background: rgba(255, 255, 255, .78); box-shadow: 0 10px 26px -20px rgba(30, 58, 138, .55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .overview-heading .heading-actions label { min-width: 158px; }
 .overview-heading .heading-actions select, .overview-heading .refresh-button { min-height: 48px; }
+@media (min-width: 1181px) {
+  .overview-heading { display: grid; grid-template-columns: minmax(400px, 1fr) auto; gap: 24px; }
+  .overview-heading .heading-copy { min-width: 0; }
+  .overview-heading .heading-actions { width: auto; flex-wrap: nowrap; }
+}
 
 /* KPI strip: consistent iconography, quieter color and stronger numbers. */
 .overview-metrics { margin-bottom: 22px; }
