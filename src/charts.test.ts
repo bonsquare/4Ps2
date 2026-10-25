@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACCOMPLISHMENT_TO_DATE, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
+import { ACCOMPLISHMENT_TO_DATE, formatPaymentShare, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
 
 describe('payment donut layout', () => {
   it('makes the donut prominent at both laptop and wide-desktop sizes', () => {
@@ -16,7 +16,9 @@ describe('payment donut layout', () => {
   })
 
   it('keeps every outside percentage label within the chart canvas', () => {
-    expect(PAYMENT_DONUT_LABEL_LAYOUT).toEqual({ alignTo: 'edge', edgeDistance: 8, bleedMargin: 4 })
+    expect(PAYMENT_DONUT_LABEL_LAYOUT).toEqual({ alignTo: 'edge', edgeDistance: 8, bleedMargin: 4, overflow: 'none' })
+    expect(formatPaymentShare(16.48)).toBe('16.5%')
+    expect(formatPaymentShare(66.02)).toBe('66%')
   })
 
   it('uses the requested accomplishment label', () => {
