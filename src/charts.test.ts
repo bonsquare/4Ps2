@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { ACCOMPLISHMENT_TO_DATE, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutRadius } from './charts'
+import { ACCOMPLISHMENT_TO_DATE, PAYMENT_DONUT_GRAPHIC_Z, paymentDonutLabelLine, paymentDonutRadius } from './charts'
 
 describe('payment donut layout', () => {
   it('keeps enough center space for all summary text in a narrow chart', () => {
-    expect(paymentDonutRadius(300)).toEqual(['42%', '58%'])
+    expect(paymentDonutRadius(300)).toEqual(['38%', '50%'])
     expect(PAYMENT_DONUT_GRAPHIC_Z).toBeGreaterThan(2)
   })
 
-  it('keeps outside percentage labels inside the chart canvas', () => {
-    expect(PAYMENT_DONUT_LABEL_LAYOUT).toEqual({ alignTo: 'edge', edgeDistance: 8, bleedMargin: 4 })
+  it('shortens leader lines when horizontal chart space is limited', () => {
+    expect(paymentDonutLabelLine(300)).toEqual({ length: 6, length2: 3 })
+    expect(paymentDonutLabelLine(420)).toEqual({ length: 10, length2: 6 })
   })
 
   it('uses the requested accomplishment label', () => {
