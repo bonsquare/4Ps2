@@ -873,14 +873,16 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <section class="card review-table" aria-labelledby="review-title">
-          <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong>{{ number.format(filteredReviewRecords.length) }} records</strong></header>
-          <div class="review-filters">
+          <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong class="record-pill">{{ number.format(filteredReviewRecords.length) }} records</strong></header>
+          <div class="filter-panel">
+          <div class="review-filters main-filters">
             <label>Province<select v-if="!isProvinceView" v-model="reviewProvinceId"><option value="all">All provinces</option><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select><input v-else :value="selectedProvince.name" readonly aria-label="Selected province" /></label>
             <label v-if="!isProvinceView">Municipality<select v-model="reviewMunicipality"><option value="all">All municipalities</option><option v-for="item in reviewMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated</option><option value="pending">For Validation</option></select></label>
             <label>Payment mode<select v-model="reviewMode"><option value="all">All modes</option><option v-for="item in reviewModes" :key="item" :value="item">{{ item }}</option></select></label>
-            <label class="review-search">Search<input v-model="reviewQuery" placeholder="Name, household ID, account, location or remarks" /></label>
+            <label class="review-search">Search<input v-model="reviewQuery" type="search" placeholder="Name, household ID, account, location or remarks" /></label>
           </div>
+          <div class="filter-bar">
           <details class="more-filters" :open="reviewFiltersActive > 0">
             <summary>More filters<span v-if="reviewFiltersActive" class="filter-count">{{ reviewFiltersActive }} active</span></summary>
             <div class="review-filters more-grid">
@@ -891,8 +893,10 @@ onBeforeUnmount(() => {
               <label>Date claimed / opened · from<input v-model="claimedFrom" type="date" /></label>
               <label>Date claimed / opened · to<input v-model="claimedTo" type="date" /></label>
             </div>
-            <button class="clear-filters" :disabled="!reviewFiltersActive" @click="clearReviewFilters">Clear all filters</button>
           </details>
+          <button class="clear-filters" :disabled="!reviewFiltersActive" @click="clearReviewFilters">Clear all filters</button>
+          </div>
+          </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
           <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th class="claimed-head">Date Claimed/Account Opened (LBP servicing Branch)</th><th>Status</th><th>Date validated</th><th>Remarks</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td class="location-cell">{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td class="nowrap-cell">{{ record.payment.dateClaimed ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.payment.dateClaimed}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td><td class="nowrap-cell">{{ record.validatedDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.validatedDate}T00:00:00+08:00`)) : '—' }}</td><td class="remarks-cell">{{ record.payment.remarks || '—' }}</td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
