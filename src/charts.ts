@@ -3,7 +3,7 @@ export const PAYMENT_DONUT_GRAPHIC_Z = 10
 export const PAYMENT_DONUT_LABEL_LAYOUT = { alignTo: 'edge' as const, edgeDistance: 8, bleedMargin: 4, overflow: 'none' as const }
 
 export function formatPaymentShare(value: number) {
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
+  return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
 }
 
 export function isNarrowPaymentChart(width: number) {

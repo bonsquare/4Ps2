@@ -17,8 +17,9 @@ describe('payment donut layout', () => {
 
   it('keeps every outside percentage label within the chart canvas', () => {
     expect(PAYMENT_DONUT_LABEL_LAYOUT).toEqual({ alignTo: 'edge', edgeDistance: 8, bleedMargin: 4, overflow: 'none' })
-    expect(formatPaymentShare(16.48)).toBe('16.5%')
-    expect(formatPaymentShare(66.02)).toBe('66%')
+    expect(formatPaymentShare(16.48)).toBe('16.48%')
+    expect(formatPaymentShare(66.02)).toBe('66.02%')
+    expect(formatPaymentShare(1.4)).toBe('1.40%')
   })
 
   it('uses the requested accomplishment label', () => {
