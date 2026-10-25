@@ -362,11 +362,11 @@ img.report-seal { height: 64px; }
 .insight-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: #2563eb; }
 .insight-card.accomplished { border-color: #d7f1e8; background: linear-gradient(145deg, #ecfdf5, #fff 72%); }
 .insight-card.accomplished::before { background: #10b981; }
-.insight-card.backlog { border-color: #f8e6bd; background: linear-gradient(145deg, #fffbeb, #fff 72%); }
-.insight-card.backlog::before { background: #f59e0b; }
+.insight-card.backlog { border-color: #fecaca; background: linear-gradient(145deg, #fef2f2, #fff 72%); }
+.insight-card.backlog::before { background: #ef4444; }
 .insight-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #dbeafe; color: #2563eb; }
 .accomplished .insight-icon { background: #d1fae5; color: #059669; }
-.backlog .insight-icon { background: #fef3c7; color: #d97706; }
+.backlog .insight-icon { background: #fee2e2; color: #dc2626; }
 .insight-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .insight-card span { display: block; color: #64748b; font-size: 9px; font-weight: 750; line-height: 1.2; }
 .insight-card strong { display: block; margin-top: 4px; color: #172b45; font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; }
