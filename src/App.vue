@@ -6,7 +6,7 @@ import { DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, To
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { beneficiaryList, buildPaymentInsights, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
@@ -99,6 +99,10 @@ const profileForm = reactive({ fullName: '', position: '', province: '' })
 const managedProfiles = ref<UserProfile[]>([])
 const approvalsBusy = ref(false)
 const profileFilter = ref<'all' | UserProfile['status']>('all')
+const invitationForm = reactive({ email: '', fullName: '', position: '', province: '' })
+const invitationBusy = ref(false)
+const invitationMessage = ref('')
+const invitationError = ref('')
 const statusOrder = { pending: 0, approved: 1, denied: 2 }
 const profileCounts = computed(() => ({
   all: managedProfiles.value.length,
@@ -280,7 +284,7 @@ function clearReviewFilters() {
 }
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
-  return reviewScope.value.filter((record) => {
+  return sortRecordsByValidatedDate(reviewScope.value.filter((record) => {
     if (municipalityActive.value && record.municipality !== municipality.value) return false
     if (!isProvinceView.value && reviewMunicipality.value !== 'all' && record.municipality !== reviewMunicipality.value) return false
     if (reviewBarangay.value !== 'all' && record.barangay !== reviewBarangay.value) return false
@@ -294,7 +298,7 @@ const filteredReviewRecords = computed(() => {
     const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
       .some((value) => value.toLowerCase().includes(query))
     return matchesStatus && matchesQuery
-  })
+  }))
 })
 const reviewTotalPages = computed(() => Math.max(1, Math.ceil(filteredReviewRecords.value.length / REVIEW_PAGE_SIZE)))
 const pagedReviewRecords = computed(() => paginateRecords(filteredReviewRecords.value, reviewPage.value))
@@ -330,16 +334,45 @@ async function submitProfile() {
   if (!currentUser.value?.email || !authClient) return
   profileBusy.value = true
   profileError.value = ''
-  const { error } = await authClient.from('user_profiles').insert({
-    id: currentUser.value.id,
-    email: currentUser.value.email,
-    full_name: profileForm.fullName.trim(),
-    position: profileForm.position.trim(),
-    province: profileForm.province.trim(),
-  })
-  if (error) profileError.value = error.message
-  else await loadProfile()
+  try {
+    const session = (await authClient.auth.getSession()).data.session
+    const response = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+      body: JSON.stringify({ fullName: profileForm.fullName, position: profileForm.position, province: profileForm.province }),
+    })
+    const detail = await response.json().catch(() => ({})) as { error?: string }
+    if (!response.ok) profileError.value = detail.error ?? 'Unable to save your profile.'
+    else await loadProfile()
+  } catch (error) {
+    profileError.value = error instanceof Error ? error.message : 'Unable to save your profile.'
+  }
   profileBusy.value = false
+}
+
+async function sendInvitation() {
+  if (!authClient) return
+  invitationBusy.value = true
+  invitationMessage.value = ''
+  invitationError.value = ''
+  try {
+    const session = (await authClient.auth.getSession()).data.session
+    const response = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+      body: JSON.stringify(invitationForm),
+    })
+    const detail = await response.json().catch(() => ({})) as { error?: string }
+    if (!response.ok) invitationError.value = detail.error ?? 'Unable to send the invitation.'
+    else {
+      invitationMessage.value = `Invitation sent to ${invitationForm.email.trim().toLowerCase()}.`
+      invitationForm.email = ''; invitationForm.fullName = ''; invitationForm.position = ''; invitationForm.province = ''
+    }
+  } catch (error) {
+    invitationError.value = error instanceof Error ? error.message : 'Unable to send the invitation.'
+  } finally {
+    invitationBusy.value = false
+  }
 }
 
 // quiet = background poll that keeps the sidebar's pending-request badge current without flashing the busy state.
@@ -1030,7 +1063,22 @@ onBeforeUnmount(() => {
 
       <template v-else>
         <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User Management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles()"><svg class="refresh-icon" :class="{ spinning: approvalsBusy }" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
-        <section class="card approvals-card"><div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div><div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div></section>
+        <section class="card approvals-card">
+          <div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div>
+          <form class="invite-form" @submit.prevent="sendInvitation">
+            <div><h2>Invite a user</h2><p>Send a secure registration email. The recipient must sign in with Google using the invited email.</p></div>
+            <div class="invite-fields">
+              <label>Email<input v-model="invitationForm.email" type="email" required placeholder="person@example.com" /></label>
+              <label>Full name<input v-model="invitationForm.fullName" required placeholder="Maria Santos" /></label>
+              <label>Position<input v-model="invitationForm.position" required placeholder="Provincial Link" /></label>
+              <label>Province or office<select v-model="invitationForm.province" required><option disabled value="">Select province or office</option><option value="Regional Program Management Office">Regional Program Management Office</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
+              <button class="primary-button compact" :disabled="invitationBusy">{{ invitationBusy ? 'Sending…' : 'Send invitation' }}</button>
+            </div>
+            <p v-if="invitationMessage" class="invite-success" role="status">{{ invitationMessage }}</p>
+            <p v-if="invitationError" class="auth-error" role="alert">{{ invitationError }}</p>
+          </form>
+          <div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div>
+        </section>
       </template>
     </main>
     <div v-if="updateAvailable" class="update-toast" role="status" aria-live="polite">

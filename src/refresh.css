@@ -479,3 +479,14 @@ img.report-seal { height: 64px; }
 .filter-bar .clear-filters:not(:disabled):hover { background: #eef2ff; }
 @media (max-width: 1180px) { .filter-panel .main-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .filter-panel .main-filters .review-search { grid-column: 1 / -1; } }
 @media (max-width: 560px) { .filter-panel { padding: 14px 12px 12px; } .filter-panel .main-filters { grid-template-columns: 1fr; } .filter-bar .clear-filters { position: static; margin-top: 10px; width: 100%; } }
+
+.invite-form { margin-bottom: 18px; padding: 16px; border: 1px solid rgba(99, 102, 241, .16); border-radius: 16px; background: linear-gradient(135deg, #f8f9ff, #fff); }
+.invite-form h2 { margin: 0; color: #23394f; font-size: 16px; }
+.invite-form p { margin: 5px 0 0; color: #718096; font-size: 12px; }
+.invite-fields { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) auto; gap: 10px; align-items: end; margin-top: 12px; }
+.invite-fields label { margin: 0; color: #4f46e5; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.invite-fields input, .invite-fields select { min-height: 42px; margin-top: 5px; font-size: 12px; }
+.invite-fields .primary-button { min-height: 42px; margin: 0; white-space: nowrap; }
+.invite-success { color: #047857 !important; font-weight: 700; }
+@media (max-width: 1180px) { .invite-fields { grid-template-columns: repeat(2, minmax(160px, 1fr)); } .invite-fields .primary-button { width: fit-content; } }
+@media (max-width: 560px) { .invite-form { padding: 12px; } .invite-fields { grid-template-columns: 1fr; } .invite-fields .primary-button { width: 100%; } }

@@ -58,6 +58,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 
 ### Storage (Supabase, Postgres with Row Level Security)
 - `user_profiles` — one row per user (name, position, province/office, status `pending|approved|denied`, super-admin flag). Migration `20261023063000_user_approval.sql`.
+- `user_invitations` — server-created invitation records for Super Administrators. Invitations are email-specific, expire with the Supabase Auth invite link, and never approve access by themselves. Migration `20261026090000_user_invitations.sql`.
 - `accomplishment_log` — `entry_key` (`Province|Entry_id`) and `first_seen`; rows are added once and never overwritten. Migration `20261023120000_accomplishment_log.sql`.
 
 ### API (Vercel serverless, `api/`)
@@ -77,6 +78,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 | Variable | Used by |
 |---|---|
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | browser and API (public anon key only, never a service-role key) |
+| `SUPABASE_SERVICE_ROLE_KEY` | server-only Vercel API routes for sending invitations and creating verified profiles; never expose to the browser |
 | `VITE_GOOGLE_CLIENT_ID` | Google sign-in button |
 | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile |
 

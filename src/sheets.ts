@@ -67,6 +67,13 @@ export function paginateRecords<T>(records: T[], requestedPage: number, pageSize
   return records.slice((page - 1) * pageSize, page * pageSize)
 }
 
+export function sortRecordsByValidatedDate<T extends { validatedDate?: string }>(records: T[]) {
+  return records
+    .map((record, index) => ({ record, index, timestamp: record.validatedDate ? Date.parse(`${record.validatedDate}T00:00:00Z`) : Number.NEGATIVE_INFINITY }))
+    .sort((a, b) => b.timestamp - a.timestamp || a.index - b.index)
+    .map(({ record }) => record)
+}
+
 export function filterRecordsByProvince<T extends { province: string }>(records: T[], province?: string) {
   return province ? records.filter((record) => record.province === province) : records
 }

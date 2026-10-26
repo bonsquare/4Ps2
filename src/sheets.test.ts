@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, summarizeWorksheet } from './sheets'
+import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, sortRecordsByValidatedDate, summarizeWorksheet } from './sheets'
 
 const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
 const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
@@ -12,6 +12,19 @@ describe('payment modes', () => {
     ].join('\n')
 
     expect(summarizeWorksheet(csv)).toMatchObject({ target: 5, accomplished: 4 })
+  })
+})
+
+describe('sortRecordsByValidatedDate', () => {
+  it('puts the latest validated record first across provinces and leaves undated records last', () => {
+    const records = [
+      { id: 'old', province: 'Davao Oriental', validatedDate: '2026-10-23' },
+      { id: 'latest', province: 'Davao del Sur', validatedDate: '2026-10-26' },
+      { id: 'undated', province: 'Davao del Norte' },
+      { id: 'middle', province: 'Davao City', validatedDate: '2026-10-24' },
+    ]
+
+    expect(sortRecordsByValidatedDate(records).map((record) => record.id)).toEqual(['latest', 'middle', 'old', 'undated'])
   })
 })
 
