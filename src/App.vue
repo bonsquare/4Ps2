@@ -288,6 +288,7 @@ function clearReviewFilters() {
 }
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
+  const queryWords = query.split(/\s+/).filter(Boolean) // a name matches when every word is in it, in any order
   return sortRecordsByValidatedDate(reviewScope.value.filter((record) => {
     if (municipalityActive.value && record.municipality !== municipality.value) return false
     if (!isProvinceView.value && reviewMunicipality.value !== 'all' && record.municipality !== reviewMunicipality.value) return false
@@ -297,9 +298,9 @@ const filteredReviewRecords = computed(() => {
     if (!inRange(record.payment.dateClaimed, claimedFrom.value, claimedTo.value)) return false
     if (reviewRemarks.value === 'with' && !record.payment.remarks) return false
     if (reviewRemarks.value === 'without' && record.payment.remarks) return false
-    const matchesStatus = !isProvinceView.value ? record.accomplished : reviewStatus.value === 'all'
+    const matchesStatus = !isProvinceView.value ? (record.accomplished || !!query) : reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
-    const matchesQuery = !query || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
+    const matchesQuery = !query || queryWords.every((word) => record.name.toLowerCase().includes(word)) || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
       .some((value) => value.toLowerCase().includes(query))
     return matchesStatus && matchesQuery
   }))
@@ -969,7 +970,7 @@ onBeforeUnmount(() => {
             <label v-if="!isProvinceView">Municipality<select v-model="reviewMunicipality"><option value="all">All municipalities</option><option v-for="item in reviewMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated</option><option value="pending">For Validation</option></select></label>
             <label>Payment mode<select v-model="reviewMode"><option value="all">All modes</option><option v-for="item in reviewModes" :key="item" :value="item">{{ item }}</option></select></label>
-            <label class="review-search">Search<input v-model="reviewQuery" type="search" placeholder="Name, household ID, account, location or remarks" /></label>
+            <label class="review-search">Search<input v-model="reviewQuery" type="search" :placeholder="isProvinceView ? 'Name, household ID, account, location or remarks' : 'Search all provinces: name, household ID, account, location or remarks'" /></label>
           </div>
           <div class="filter-bar">
           <details class="more-filters" :open="reviewFiltersActive > 0">
