@@ -76,6 +76,11 @@ describe('buildPaymentInsights', () => {
       progressLabel: '0 of 0 beneficiaries validated',
     })
   })
+
+  it('lists beneficiaries by latest validated date across provinces', () => {
+    const dated = records.map((item, index) => ({ ...item, validatedDate: index === 0 ? '2026-10-23' : index === 1 ? '2026-10-26' : '2026-10-24' }))
+    expect(beneficiaryList(dated, {}, 'validated').map((item) => item.id)).toEqual(['2', '4', '5', '1'])
+  })
 })
 
 describe('date coverage', () => {

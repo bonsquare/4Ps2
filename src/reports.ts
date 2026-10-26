@@ -1,4 +1,4 @@
-import type { ReviewRecord } from './sheets'
+import { sortRecordsByValidatedDate, type ReviewRecord } from './sheets'
 
 // Report scope: the whole region, one province, or one municipality of a province.
 // Each report lists the next level down: provinces, then municipalities, then barangays.
@@ -109,8 +109,7 @@ export function buildPaymentInsights(report: Report): PaymentInsights {
 
 // Names to print under a report: validated beneficiaries only, or everyone in scope.
 export function beneficiaryList(records: ReviewRecord[], scope: ReportScope, include: 'validated' | 'all', coverage: ReportCoverage = {}) {
-  return records
+  return sortRecordsByValidatedDate(records
     .filter((record) => inScope(record, scope) && (include === 'all' || (record.accomplished && validatedInCoverage(record, coverage))))
-    .sort((a, b) => a.province.localeCompare(b.province) || a.municipality.localeCompare(b.municipality)
-      || a.barangay.localeCompare(b.barangay) || a.name.localeCompare(b.name))
+  )
 }
