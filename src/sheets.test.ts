@@ -206,6 +206,14 @@ describe('applyFirstSeen', () => {
       target: 4, accomplished: 3, today: 2, daily: { '2026-10-21': 1, '2026-10-23': 2 },
     })
   })
+
+  it('keeps the first-seen validation timestamp for the date detail', () => {
+    const result = applyFirstSeen(snapshot, { 'Davao del Sur|E-2': '2026-10-21' }, '2026-10-23', {
+      'Davao del Sur|E-2': '2026-10-21T09:42:00.000Z',
+    })
+
+    expect(result.records.find((record) => record.id === 'E-2')?.validatedAt).toBe('2026-10-21T09:42:00.000Z')
+  })
 })
 
 describe('getAccomplishmentSnapshot', () => {

@@ -19,19 +19,23 @@ async function withFirstSeen(snapshot: Snapshot, client: SupabaseClient) {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())
   const keys = accomplishedRecords(snapshot).map(entryKey)
   const firstSeen: Record<string, string> = {}
+  const firstSeenAt: Record<string, string> = {}
   if (keys.length) {
     const rows = keys.map((key) => ({ entry_key: key, province: key.split('|')[0] }))
     const { error } = await client.from('accomplishment_log').upsert(rows, { onConflict: 'entry_key', ignoreDuplicates: true })
     if (!error) {
       for (let from = 0; ; from += 1000) {
-        const { data, error: readError } = await client.from('accomplishment_log').select('entry_key, first_seen').range(from, from + 999)
+        const { data, error: readError } = await client.from('accomplishment_log').select('entry_key, first_seen, first_seen_at').range(from, from + 999)
         if (readError) break
-        for (const row of data ?? []) firstSeen[row.entry_key] = row.first_seen
+        for (const row of data ?? []) {
+          firstSeen[row.entry_key] = row.first_seen
+          if (row.first_seen_at) firstSeenAt[row.entry_key] = row.first_seen_at
+        }
         if (!data || data.length < 1000) break
       }
     }
   }
-  return applyFirstSeen(snapshot, firstSeen, today)
+  return applyFirstSeen(snapshot, firstSeen, today, firstSeenAt)
 }
 
 // The ETag is a hash of the data itself (not the fetch time), so a poll that finds nothing new gets a tiny 304

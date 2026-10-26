@@ -60,6 +60,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 - `user_profiles` — one row per user (name, position, province/office, status `pending|approved|denied`, super-admin flag). Migration `20261023063000_user_approval.sql`.
 - `user_invitations` — server-created invitation records for Super Administrators. Invitations are email-specific, expire with the Supabase Auth invite link, and never approve access by themselves. Migration `20261026090000_user_invitations.sql`.
 - `accomplishment_log` — `entry_key` (`Province|Entry_id`) and `first_seen`; rows are added once and never overwritten. Migration `20261023120000_accomplishment_log.sql`.
+- `accomplishment_log.first_seen_at` — server timestamp for the first detection of each accomplished record, shown as the small time beneath Date validated. Migration `20261026110000_accomplishment_log_timestamp.sql`.
 
 ### API (Vercel serverless, `api/`)
 - `GET /sheet-data` → `api/sheets.ts`: requires an approved user's bearer token, fetches the sheets, applies first-seen dates, returns the snapshot. 15 s per-instance cache, content-hash ETag (304 on unchanged polls), `?fresh=1` bypasses the cache, serves the last good snapshot if Google fails.

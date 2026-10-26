@@ -488,5 +488,6 @@ img.report-seal { height: 64px; }
 .invite-fields input, .invite-fields select { min-height: 42px; margin-top: 5px; font-size: 12px; }
 .invite-fields .primary-button { min-height: 42px; margin: 0; white-space: nowrap; }
 .invite-success { color: #047857 !important; font-weight: 700; }
+.validated-time { display: block; margin-top: 2px; color: #94a3b8; font-size: 10px; line-height: 1.1; white-space: nowrap; }
 @media (max-width: 1180px) { .invite-fields { grid-template-columns: repeat(2, minmax(160px, 1fr)); } .invite-fields .primary-button { width: fit-content; } }
 @media (max-width: 560px) { .invite-form { padding: 12px; } .invite-fields { grid-template-columns: 1fr; } .invite-fields .primary-button { width: 100%; } }

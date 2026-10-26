@@ -59,6 +59,7 @@ export type ReviewRecord = {
   education: EducationDetails
   countedDate?: string // the day an accomplished row is counted on (its sheet date, else first seen)
   validatedDate?: string // the day the validation (payment mode) was first detected by the system
+  validatedAt?: string // timestamp when the validation was first detected, when available
 }
 
 export function paginateRecords<T>(records: T[], requestedPage: number, pageSize = REVIEW_PAGE_SIZE) {
@@ -303,7 +304,7 @@ export const accomplishedRecords = (snapshot: Snapshot) => snapshot.records.filt
 
 // The sheet has no validation date (Column T is the bank account date), so every accomplished row is
 // counted on the day it was first seen (firstSeen), or on `today` when that is not recorded yet.
-export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, string>, today: string): Snapshot {
+export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, string>, today: string, firstSeenAt: Record<string, string> = {}): Snapshot {
   const daily: Record<string, number> = {}
   const provinces = snapshot.provinces.map((province) => ({ ...province, daily: {} as Record<string, number>, today: 0 }))
   for (const record of accomplishedRecords(snapshot)) {
@@ -317,7 +318,8 @@ export function applyFirstSeen(snapshot: Snapshot, firstSeen: Record<string, str
   const records = snapshot.records.map((record) => {
     if (!record.accomplished) return record
     const validatedDate = firstSeen[entryKey(record)] ?? today
-    return { ...record, validatedDate, countedDate: validatedDate }
+    const validatedAt = firstSeenAt[entryKey(record)]
+    return { ...record, validatedDate, countedDate: validatedDate, ...(validatedAt ? { validatedAt } : {}) }
   })
   return {
     ...snapshot,
