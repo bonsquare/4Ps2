@@ -28,6 +28,12 @@ All screens work on phones (verified on Android). On screens up to 760px wide th
 5. **ESSI Community Support** — concerns backed by its own Google Sheet.
 6. **User management** — approvals queue (Super Administrator only).
 
+### Dashboard controls and municipality table
+
+- Dashboard filters use a centered, responsive control group. Regional Overview keeps its single reporting-period control compact and aligned to the right; Provincial Overview keeps Province, Municipality and Reporting Period controls centered as a group.
+- Filter labels and selected values are centered. Select fields use a consistent custom disclosure chevron. Refresh Data is an icon-only control with an accessible label and tooltip, separated from the filters by a vertical divider.
+- In Provincial Overview, the municipality payment table has a compact vertical scroll area with a frozen header. The `DUNOT` row is ordered first and remains pinned below the header while the other municipalities scroll.
+
 ### Mode of Payment dashboard card
 
 - On wide screens, a large payment-share donut stays on the left and the province/municipality data stays on the right. On narrower screens they stack so no chart label or table value is clipped.

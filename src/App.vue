@@ -387,7 +387,15 @@ const reportType = ref<'target' | 'payment'>('target')
 // Overview card: accomplished beneficiaries by payment mode. Regional view lists provinces; Provincial view lists the selected province's municipalities.
 const paymentReport = computed(() => {
   const report = buildReport(reviewRecords.value, isProvinceView.value ? { province: selectedProvince.value.name } : {})
-  if (isProvinceView.value) return report
+  if (isProvinceView.value) {
+    // Keep DUNOT as the first, pinned municipality in the provincial table.
+    return { ...report, rows: [...report.rows].sort((a, b) => {
+      const aIsDunot = a.name.trim().toUpperCase() === 'DUNOT'
+      const bIsDunot = b.name.trim().toUpperCase() === 'DUNOT'
+      if (aIsDunot !== bIsDunot) return aIsDunot ? -1 : 1
+      return a.name.localeCompare(b.name)
+    }) }
+  }
   const order = (name: string) => provinces.findIndex((item) => item.name === name)
   return { ...report, rows: [...report.rows].sort((a, b) => order(a.name) - order(b.name)) } // same province order as the other chart
 })
@@ -844,12 +852,12 @@ onBeforeUnmount(() => {
     <main class="content">
       <template v-if="activeView !== 'reports' && activeView !== 'approvals' && activeView !== 'concerns'">
         <section class="page-heading overview-heading">
-          <div class="heading-copy"><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional Overview' }}</p><h1>{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
-          <div class="heading-actions">
+          <div class="heading-copy"><p class="breadcrumb">Dashboard / {{ isProvinceView ? selectedProvince.name + (municipalityActive ? ' / ' + municipality : '') : 'Regional Overview' }}</p><h1 :class="{ 'province-dashboard-title': isProvinceView }">{{ isProvinceView ? `${selectedProvince.name} Dashboard` : 'Regional Overview' }}</h1><p>Monitor targets and verified daily accomplishments for {{ period.toLowerCase() }}.</p></div>
+          <div class="heading-actions" :class="{ 'regional-filters': !isProvinceView, 'province-filters': isProvinceView }">
             <label v-if="role === 'regional' && isProvinceView">Province<select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
             <label v-if="isProvinceView">Municipality<select v-model="municipality"><option value="all">All municipalities</option><option v-for="item in municipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Reporting period<select v-model="period"><option>Today</option><option>This week</option><option>This month</option></select></label>
-            <button class="refresh-button" :disabled="refreshing" @click="refreshData"><svg class="refresh-icon" :class="{ spinning: refreshing }" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>{{ refreshing ? 'Refreshing…' : 'Refresh Data' }}</button>
+            <button class="refresh-button refresh-icon-button" :disabled="refreshing" :aria-label="refreshing ? 'Refreshing data' : 'Refresh data'" :title="refreshing ? 'Refreshing data' : 'Refresh data'" @click="refreshData"><svg class="refresh-icon" :class="{ spinning: refreshing }" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
           </div>
         </section>
         <div v-if="dataError" class="connection-error" role="alert">Live Google Sheets connection failed: {{ dataError }}. The last available values remain on screen.</div>
@@ -872,8 +880,8 @@ onBeforeUnmount(() => {
               <p v-else class="chart-note">No validated beneficiaries yet, so there is no payment mode to chart.</p>
             </div>
             <div class="payment-details">
-              <div class="table-scroll"><table class="mode-table" :class="{ 'municipality-mode-table': isProvinceView }"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For<br />Validation</th></tr></thead>
-                <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
+              <div class="table-scroll" :class="{ 'municipality-table-scroll': isProvinceView }"><table class="mode-table" :class="{ 'municipality-mode-table': isProvinceView }"><thead><tr><th>{{ paymentReport.childLabel }}</th><th>Target</th><th v-for="(mode, index) in paymentReport.modes" :key="mode"><i class="mode-dot" :style="{ background: modeColor(index) }"></i>{{ mode }}</th><th>Validated</th><th>For<br />Validation</th></tr></thead>
+                <tbody><tr v-for="row in paymentReport.rows" :key="row.name" @click="openPaymentRow(row.name)" :class="{ active: isProvinceView && municipality === row.name, 'dunot-row': isProvinceView && row.name.trim().toUpperCase() === 'DUNOT' }"><td><strong>{{ row.name }}</strong></td><td>{{ number.format(row.target) }}</td><td v-for="mode in paymentReport.modes" :key="mode" :class="{ zero: !(row.modes[mode] ?? 0) }">{{ number.format(row.modes[mode] ?? 0) }}</td><td class="validated-cell"><strong>{{ number.format(row.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.percent, 100)}%` }"></i></span><small>{{ row.percent }}%</small></td><td class="pending-cell">{{ number.format(row.remaining) }}</td></tr></tbody>
                 <tfoot><tr><th>Total</th><th>{{ number.format(paymentReport.total.target) }}</th><th v-for="mode in paymentReport.modes" :key="mode">{{ number.format(paymentReport.total.modes[mode] ?? 0) }}</th><th class="validated-cell"><strong>{{ number.format(paymentReport.total.actual) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(paymentReport.total.percent, 100)}%` }"></i></span><small>{{ paymentReport.total.percent }}%</small></th><th>{{ number.format(paymentReport.total.remaining) }}</th></tr></tfoot></table></div>
               <aside class="payment-insights" aria-labelledby="payment-insights-title">
                 <div class="insights-heading"><div><span class="live-summary-label"><i aria-hidden="true"></i>Live summary</span><h3 id="payment-insights-title">Payment insights</h3></div><strong>{{ paymentReport.total.percent }}% validated</strong></div>

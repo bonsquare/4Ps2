@@ -278,13 +278,17 @@ body { background:
 .overview-heading .breadcrumb { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 9px; border: 1px solid rgba(124, 58, 237, .12); border-radius: 999px; background: rgba(124, 58, 237, .07); }
 .overview-heading .breadcrumb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, .12); }
 .overview-heading h1 { font-size: clamp(30px, 3.1vw, 40px); }
-.overview-heading .heading-actions { flex: 0 1 auto; align-items: flex-end; padding: 9px; border: 1px solid rgba(99, 102, 241, .13); border-radius: 18px; background: rgba(255, 255, 255, .78); box-shadow: 0 10px 26px -20px rgba(30, 58, 138, .55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-.overview-heading .heading-actions label { min-width: 158px; }
+.overview-heading h1.province-dashboard-title { max-width: 100%; font-size: clamp(22px, 2.1vw, 38px); letter-spacing: -.045em; white-space: normal; }
+.overview-heading .heading-actions { min-width: 0; flex: 0 1 auto; align-items: flex-end; justify-content: center; gap: 8px; padding: 8px; border: 1px solid rgba(99, 102, 241, .13); border-radius: 18px; background: rgba(255, 255, 255, .78); box-shadow: 0 10px 26px -20px rgba(30, 58, 138, .55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.overview-heading .heading-actions label { min-width: 0; flex: 0 1 220px; text-align: center; }
+.overview-heading .heading-actions select { min-width: 0; appearance: none; padding-right: 34px; text-align: center; text-align-last: center; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23334455' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px; }
+.overview-heading .heading-actions .refresh-icon-button { position: relative; flex: 0 0 48px; width: 48px; min-width: 48px; height: 48px; margin-left: 8px; padding: 0; border-radius: 14px; }
+.overview-heading .heading-actions .refresh-icon-button::before { content: ''; position: absolute; left: -9px; top: 8px; height: 32px; border-left: 1px solid rgba(99, 102, 241, .2); }
 .overview-heading .heading-actions select, .overview-heading .refresh-button { min-height: 48px; }
 @media (min-width: 1181px) {
-  .overview-heading { display: grid; grid-template-columns: minmax(400px, 1fr) auto; gap: 24px; }
+  .overview-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr); gap: 20px; }
   .overview-heading .heading-copy { min-width: 0; }
-  .overview-heading .heading-actions { width: auto; flex-wrap: nowrap; }
+  .overview-heading .heading-actions { width: 100%; flex-wrap: nowrap; }
 }
 
 /* KPI strip: consistent iconography, quieter color and stronger numbers. */
@@ -301,7 +305,7 @@ body { background:
 
 @media (max-width: 1180px) {
   .overview-heading { align-items: flex-start; }
-  .overview-heading .heading-actions { width: 100%; justify-content: flex-start; }
+  .overview-heading .heading-actions { width: 100%; justify-content: center; }
 }
 @media (max-width: 760px) {
   .overview-heading { padding: 18px; border-radius: 18px; }
@@ -313,6 +317,10 @@ body { background:
   .overview-metrics article > span { max-width: calc(100% - 38px); }
   .overview-metrics strong { margin-top: 9px; }
 }
+
+/* The regional view has one control, so keep its action surface compact. */
+.overview-heading .heading-actions.regional-filters { width: fit-content; max-width: 100%; margin-left: auto; margin-right: 0; }
+.overview-heading .heading-actions.regional-filters label { flex: 0 1 240px; }
 @media (prefers-reduced-transparency: reduce) { .overview-heading .heading-actions { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; } }
 
 /* 4Ps logo replaces the "XI" seal everywhere (login, topbar, printed report) */
@@ -387,6 +395,16 @@ img.report-seal { height: 64px; }
 .mode-table tbody tr:nth-child(even) td { background: #fafbff; }
 .mode-table tbody tr:hover td { background: #eef2ff; }
 .mode-table tbody tr.active td { background: #e0e7ff; }
+.municipality-table-scroll { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #b7c4df transparent; }
+.municipality-table-scroll::-webkit-scrollbar { width: 7px; }
+.municipality-table-scroll::-webkit-scrollbar-track { background: transparent; }
+.municipality-table-scroll::-webkit-scrollbar-thumb { border-radius: 99px; background: #b7c4df; }
+.municipality-table-scroll .mode-table { border-collapse: separate; border-spacing: 0; overflow: visible; }
+.municipality-table-scroll .mode-table thead { position: sticky; top: 0; z-index: 4; }
+.municipality-table-scroll .mode-table thead th { position: sticky; top: 0; z-index: 3; background: #e8edfb; box-shadow: 0 1px 0 #cfd8ee; }
+.municipality-table-scroll .mode-table tbody .dunot-row td { position: sticky; top: 42px; z-index: 2; background: #eef2ff; box-shadow: 0 2px 0 #d3dcf1; }
+.municipality-table-scroll .mode-table tbody .dunot-row:hover td,
+.municipality-table-scroll .mode-table tbody .dunot-row.active td { background: #e0e7ff; }
 .mode-table td.zero { color: #a3aec2; }
 .mode-table tfoot th { background: #dfe6fa; color: #1e2a55; font-size: 13.5px; }
 .mode-dot { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; vertical-align: baseline; }
