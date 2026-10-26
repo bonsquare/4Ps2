@@ -18,10 +18,11 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 
 - `src/App.vue` — the whole UI (login, registration form, approval states, dashboard, reports). Template is near the bottom of the file.
 - `api/invitations.ts` and `api/profile.ts` — server-only invitation and profile-submission endpoints. They require `SUPABASE_SERVICE_ROLE_KEY`; never move that key into `VITE_` variables.
+- Manual registration: Super Administrators invite users from User Management. Recipients must sign in with Google using the invited email, submit a profile, and remain pending until approval. Invitation delivery also requires `SITE_URL` in Vercel.
 - `src/sheets.ts` — Google Sheets CSV parsing, `WORKSHEETS`, `applyFirstSeen`, record summaries.
 - `src/reports.ts`, `src/domain.ts`, `src/access.ts`, `src/auth.ts`, `src/concerns.ts` — report building, aggregation, approval states, Supabase/Google/Turnstile setup, concerns sheet.
 - `api/sheets.ts`, `api/concerns.ts`, `src/serverAuth.ts` — Vercel functions (approved users only). `vercel.json` rewrites `/sheet-data` and `/concerns-data`.
-- `supabase/migrations/` — `user_profiles`, `accomplishment_log`, and `accomplishment_log.first_seen_at` (apply in the Supabase SQL editor). The timestamp migration enables the small validation time shown beneath each validation date.
+- `supabase/migrations/` — `user_profiles`, `user_invitations`, `accomplishment_log`, and `accomplishment_log.first_seen_at` (apply in the Supabase SQL editor). The invitation migration enables Super Administrator manual registration; the timestamp migration enables the small validation time shown beneath each validation date.
 - Styles: `style.css` (base) → `refresh.css` → `auth-pages.css` (login, registration, status screens) → `reports.css`, `concerns.css` → `mobile.css` (phone layout, up to 760px wide). Later files override earlier ones, so phone fixes go in `mobile.css`; `refresh.css` re-styles the topbar, cards and heading and would otherwise undo rules added in `style.css`.
 - `public/` — `logo.png`, `login-bg.webp` (login picture).
 

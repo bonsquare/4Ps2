@@ -12,6 +12,7 @@ import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 import { ACCOMPLISHMENT_TO_DATE, formatPaymentShare, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
+import { sortInvitationsByExpiry } from './invitations'
 
 use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -97,12 +98,15 @@ const profileBusy = ref(false)
 const profileError = ref('')
 const profileForm = reactive({ fullName: '', position: '', province: '' })
 const managedProfiles = ref<UserProfile[]>([])
+type ManagedInvitation = { id: string; email: string; fullName: string; position: string; province: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; expiresAt: string; createdAt: string; acceptedAt?: string | null }
+const managedInvitations = ref<ManagedInvitation[]>([])
 const approvalsBusy = ref(false)
 const profileFilter = ref<'all' | UserProfile['status']>('all')
 const invitationForm = reactive({ email: '', fullName: '', position: '', province: '' })
 const invitationBusy = ref(false)
 const invitationMessage = ref('')
 const invitationError = ref('')
+const invitationOpen = ref(false)
 const statusOrder = { pending: 0, approved: 1, denied: 2 }
 const profileCounts = computed(() => ({
   all: managedProfiles.value.length,
@@ -367,12 +371,38 @@ async function sendInvitation() {
     else {
       invitationMessage.value = `Invitation sent to ${invitationForm.email.trim().toLowerCase()}.`
       invitationForm.email = ''; invitationForm.fullName = ''; invitationForm.position = ''; invitationForm.province = ''
+      invitationOpen.value = false
+      await loadInvitations(true)
     }
   } catch (error) {
     invitationError.value = error instanceof Error ? error.message : 'Unable to send the invitation.'
   } finally {
     invitationBusy.value = false
   }
+}
+
+function closeInvitation() {
+  if (!invitationBusy.value) invitationOpen.value = false
+}
+
+function toInvitation(record: Record<string, unknown>): ManagedInvitation {
+  return {
+    id: String(record.id), email: String(record.email), fullName: String(record.full_name), position: String(record.position), province: String(record.province),
+    status: record.status as ManagedInvitation['status'], expiresAt: String(record.expires_at), createdAt: String(record.created_at), acceptedAt: record.accepted_at ? String(record.accepted_at) : null,
+  }
+}
+
+const invitationDateTime = (value: string) => new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }).format(new Date(value))
+const pendingInvitations = computed(() => sortInvitationsByExpiry(managedInvitations.value.filter((item) => item.status === 'pending')))
+
+async function loadInvitations(quiet = false) {
+  if (!superAdmin.value || !authClient || devBypass) return
+  const session = (await authClient.auth.getSession()).data.session
+  if (!session) return
+  const response = await fetch('/api/invitations', { headers: { Authorization: `Bearer ${session.access_token}` } })
+  if (!response.ok) { if (!quiet) invitationError.value = 'Unable to load invitations.'; return }
+  const payload = await response.json() as { invitations?: Array<Record<string, unknown>> }
+  managedInvitations.value = (payload.invitations ?? []).map(toInvitation)
 }
 
 // quiet = background poll that keeps the sidebar's pending-request badge current without flashing the busy state.
@@ -384,6 +414,7 @@ async function loadProfiles(quiet = false) {
     .order('requested_at', { ascending: true })
   if (error) { if (!quiet) profileError.value = 'Unable to load users.' }
   else managedProfiles.value = (data ?? []).map(toProfile)
+  await loadInvitations(quiet)
   if (!quiet) approvalsBusy.value = false
 }
 
@@ -1066,20 +1097,19 @@ onBeforeUnmount(() => {
         <section class="page-heading"><div><p class="breadcrumb">Super Administrator / Users</p><h1>User Management</h1><p>Approve new requests and manage who can open the dashboard.</p></div><button class="refresh-button" :disabled="approvalsBusy" @click="loadProfiles()"><svg class="refresh-icon" :class="{ spinning: approvalsBusy }" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>{{ approvalsBusy ? 'Refreshing…' : 'Refresh users' }}</button></section>
         <section class="card approvals-card">
           <div v-if="profileError" class="connection-error" role="alert">{{ profileError }}</div>
-          <form class="invite-form" @submit.prevent="sendInvitation">
-            <div><h2>Invite a user</h2><p>Send a secure registration email. The recipient must sign in with Google using the invited email.</p></div>
-            <div class="invite-fields">
-              <label>Email<input v-model="invitationForm.email" type="email" required placeholder="person@example.com" /></label>
-              <label>Full name<input v-model="invitationForm.fullName" required placeholder="Maria Santos" /></label>
-              <label>Position<input v-model="invitationForm.position" required placeholder="Provincial Link" /></label>
-              <label>Province or office<select v-model="invitationForm.province" required><option disabled value="">Select province or office</option><option value="Regional Program Management Office">Regional Program Management Office</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
-              <button class="primary-button compact" :disabled="invitationBusy">{{ invitationBusy ? 'Sending…' : 'Send invitation' }}</button>
-            </div>
-            <p v-if="invitationMessage" class="invite-success" role="status">{{ invitationMessage }}</p>
-            <p v-if="invitationError" class="auth-error" role="alert">{{ invitationError }}</p>
-          </form>
+          <div class="invite-toolbar"><div><h2>Manual registration</h2><p>Invite a user by email, then monitor the invitation status here.</p></div><button class="primary-button compact" @click="invitationOpen = true">Send Invitation</button></div>
+          <p v-if="invitationMessage" class="invite-success" role="status">{{ invitationMessage }}</p>
+          <p v-if="invitationError" class="auth-error" role="alert">{{ invitationError }}</p>
+          <section class="invitation-monitor"><div class="invitation-monitor-heading"><div><h2>Pending invitations</h2><p>Track invitations waiting for the recipient to complete registration.</p></div><span class="record-pill">{{ pendingInvitations.length }} pending</span></div><p v-if="pendingInvitations.length === 0" class="empty-state">No pending invitations.</p><div v-else class="table-scroll"><table><thead><tr><th>Recipient</th><th>Position</th><th>Province / office</th><th>Sent</th><th>Expires</th><th>Status</th></tr></thead><tbody><tr v-for="invitation in pendingInvitations" :key="invitation.id"><td><strong>{{ invitation.fullName }}</strong><small>{{ invitation.email }}</small></td><td>{{ invitation.position }}</td><td>{{ invitation.province }}</td><td class="nowrap-cell">{{ invitationDateTime(invitation.createdAt) }}</td><td class="nowrap-cell">{{ invitationDateTime(invitation.expiresAt) }}</td><td><span class="review-status pending">Pending</span></td></tr></tbody></table></div></section>
           <div class="user-filters" role="tablist" aria-label="Filter users by status"><button v-for="tab in ['all', 'pending', 'approved', 'denied']" :key="tab" role="tab" :aria-selected="profileFilter === tab" :class="{ active: profileFilter === tab }" @click="profileFilter = tab as typeof profileFilter">{{ tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1) }} <span>{{ profileCounts[tab as keyof typeof profileCounts] }}</span></button></div><p v-if="!approvalsBusy && visibleProfiles.length === 0" class="empty-state">No users in this list.</p><div v-else class="table-scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Province</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="member in visibleProfiles" :key="member.id"><td><strong>{{ member.fullName }}</strong><small v-if="member.isSuperAdmin" class="admin-tag">Super admin</small></td><td>{{ member.email }}</td><td>{{ member.position }}</td><td>{{ member.province }}</td><td><span class="review-status" :class="{ complete: member.status === 'approved', denied: member.status === 'denied' }">{{ member.status[0].toUpperCase() + member.status.slice(1) }}</span></td><td class="approval-actions"><template v-if="canManage(member)"><button v-if="member.status !== 'approved'" class="approve-button" :disabled="approvalsBusy" @click="decideProfile(member, 'approved')">{{ member.status === 'denied' ? 'Reactivate' : 'Approve' }}</button><button v-if="member.status === 'pending'" class="deny-button" :disabled="approvalsBusy" @click="decideProfile(member, 'denied')">Deny</button><button v-if="member.status === 'approved'" class="deny-button" :disabled="approvalsBusy" @click="removeAccess(member)">Remove access</button></template><span v-else class="muted-note">—</span></td></tr></tbody></table></div>
         </section>
+        <div v-if="invitationOpen" class="modal-backdrop" role="presentation" @click.self="closeInvitation">
+          <form class="invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-dialog-title" @submit.prevent="sendInvitation">
+            <div class="invite-modal-heading"><div><p class="eyebrow">Manual registration</p><h2 id="invite-dialog-title">Send an invitation</h2><p>The recipient must sign in with Google using this email address.</p></div><button type="button" class="modal-close" aria-label="Close invitation dialog" @click="closeInvitation">×</button></div>
+            <div class="invite-fields"><label>Email<input v-model="invitationForm.email" type="email" required placeholder="person@example.com" /></label><label>Full name<input v-model="invitationForm.fullName" required placeholder="Maria Santos" /></label><label>Position<input v-model="invitationForm.position" required placeholder="Provincial Link" /></label><label>Province or office<select v-model="invitationForm.province" required><option disabled value="">Select province or office</option><option value="Regional Program Management Office">Regional Program Management Office</option><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label></div>
+            <div class="invite-modal-actions"><button type="button" class="secondary-button" @click="closeInvitation">Cancel</button><button class="primary-button compact" :disabled="invitationBusy">{{ invitationBusy ? 'Sending…' : 'Send invitation' }}</button></div>
+          </form>
+        </div>
       </template>
     </main>
     <div v-if="updateAvailable" class="update-toast" role="status" aria-live="polite">

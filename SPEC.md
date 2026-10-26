@@ -65,6 +65,8 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 ### API (Vercel serverless, `api/`)
 - `GET /sheet-data` → `api/sheets.ts`: requires an approved user's bearer token, fetches the sheets, applies first-seen dates, returns the snapshot. 15 s per-instance cache, content-hash ETag (304 on unchanged polls), `?fresh=1` bypasses the cache, serves the last good snapshot if Google fails.
 - `GET /concerns-data` → `api/concerns.ts`: same auth, returns concerns.
+- `POST /api/invitations` → `api/invitations.ts`: Super Administrator-only manual registration invitation. It sends a Supabase Auth invite to the normalized email and records the pending invitation.
+- `POST /api/profile` → `api/profile.ts`: verifies the signed-in Google user, creates the pending profile, and accepts a matching invitation without granting access until approval.
 - Rewrites are in `vercel.json`.
 
 ## Installable app (PWA)
@@ -80,6 +82,7 @@ Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one wor
 |---|---|
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | browser and API (public anon key only, never a service-role key) |
 | `SUPABASE_SERVICE_ROLE_KEY` | server-only Vercel API routes for sending invitations and creating verified profiles; never expose to the browser |
+| `SITE_URL` | server-only invitation redirect URL, normally `https://4-ps2.vercel.app` |
 | `VITE_GOOGLE_CLIENT_ID` | Google sign-in button |
 | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile |
 

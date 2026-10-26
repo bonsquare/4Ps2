@@ -15,7 +15,7 @@ function adminClient() {
 
 export default async function handler(request: ServerRequest, response: ServerResponse) {
   response.setHeader('Cache-Control', 'private, no-store')
-  if (request.method && request.method !== 'POST') {
+  if (request.method && !['GET', 'POST'].includes(request.method)) {
     response.status(405).json({ error: 'Method not allowed.' })
     return
   }
@@ -39,6 +39,18 @@ export default async function handler(request: ServerRequest, response: ServerRe
     const { data: caller } = await admin.from('user_profiles').select('status, is_super_admin').eq('id', user.id).maybeSingle()
     if (caller?.status !== 'approved' || !caller.is_super_admin) {
       response.status(403).json({ error: 'Only an approved Super Administrator can send invitations.' })
+      return
+    }
+
+    if (request.method === 'GET') {
+      const { data: invitations, error: listError } = await admin.from('user_invitations')
+        .select('id, email, full_name, position, province, status, expires_at, created_at, accepted_at')
+        .order('created_at', { ascending: false })
+      if (listError) {
+        response.status(502).json({ error: 'Unable to load invitations.' })
+        return
+      }
+      response.status(200).json({ invitations: invitations ?? [] })
       return
     }
 

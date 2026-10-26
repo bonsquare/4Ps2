@@ -24,3 +24,7 @@ export function isInvitationExpired(expiresAt: string, now = new Date()) {
   const timestamp = Date.parse(expiresAt)
   return !Number.isFinite(timestamp) || timestamp <= now.getTime()
 }
+
+export function sortInvitationsByExpiry<T extends { expiresAt: string }>(invitations: T[]) {
+  return [...invitations].sort((a, b) => Date.parse(a.expiresAt) - Date.parse(b.expiresAt))
+}
