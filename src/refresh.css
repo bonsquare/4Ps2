@@ -388,7 +388,7 @@ img.report-seal { height: 64px; }
 .payment-report header button { border: 0; background: transparent; color: #1d5b91; font-weight: 750; }
 .payment-details { min-width: 0; display: grid; gap: 14px; align-content: start; }
 .mode-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid #cfd8ee; border-radius: 12px; overflow: hidden; }
-.mode-table th { padding: 12px 10px; background: #e8edfb; color: #1e2a55; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; text-align: center; border: 1px solid #cfd8ee; white-space: nowrap; }
+.mode-table th { padding: 12px 10px; background: #e8edfb; color: #1e2a55; font-size: 11.5px; line-height: 1.2; letter-spacing: .05em; text-transform: uppercase; text-align: center; border: 1px solid #cfd8ee; white-space: normal; overflow-wrap: normal; }
 .mode-table th:last-child { min-width: 76px; white-space: normal; line-height: 1.2; }
 .mode-table td { padding: 12px 10px; text-align: center; border: 1px solid #dfe5f2; }
 .mode-table th:first-child, .mode-table td:first-child { min-width: 104px; text-align: left; white-space: normal; line-height: 1.25; }
@@ -398,6 +398,10 @@ img.report-seal { height: 64px; }
 .mode-table tbody tr:hover td { background: #eef2ff; }
 .mode-table tbody tr.active td { background: #e0e7ff; }
 .municipality-table-scroll { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #b7c4df transparent; }
+.payment-table-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: #9eacc8 #edf1f8; }
+.payment-table-scroll::-webkit-scrollbar { height: 5px; }
+.payment-table-scroll::-webkit-scrollbar-track { border-radius: 99px; background: #edf1f8; }
+.payment-table-scroll::-webkit-scrollbar-thumb { border-radius: 99px; background: #9eacc8; }
 .municipality-table-scroll::-webkit-scrollbar { width: 7px; }
 .municipality-table-scroll::-webkit-scrollbar-track { background: transparent; }
 .municipality-table-scroll::-webkit-scrollbar-thumb { border-radius: 99px; background: #b7c4df; }
@@ -511,4 +515,3 @@ img.report-seal { height: 64px; }
 @media (max-width: 1180px) { .invite-fields { grid-template-columns: repeat(2, minmax(160px, 1fr)); } .invite-fields .primary-button { width: fit-content; } }
 @media (max-width: 560px) { .invite-form { padding: 12px; } .invite-fields { grid-template-columns: 1fr; } .invite-fields .primary-button { width: 100%; } }
 @media (max-width: 560px) { .invite-toolbar, .invitation-monitor-heading { align-items: stretch; flex-direction: column; } .invite-toolbar .primary-button { width: 100%; } .invite-modal { padding: 16px; } }
-
