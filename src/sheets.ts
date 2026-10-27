@@ -20,7 +20,10 @@ export type PaymentDetails = {
   controlNo: string
   snapshot: string
   accountNumber2: string
+  validatedBy?: string
   remarks: string
+  rpmoValidator?: string
+  rpmoRemarks?: string
 }
 
 export type PersonalDetails = {
@@ -47,6 +50,7 @@ export type ReviewRecord = {
   id: string
   province: string
   name: string
+  studentName?: string
   municipality: string
   barangay: string
   householdId: string
@@ -173,7 +177,10 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const controlNoIndex = indexOf('control no.')
   const snapshotIndex = indexOf('snapshot')
   const accountNumber2Index = indexOf('account number2')
+  const validatedByIndex = indexOf('name of mrb')
   const remarksIndex = indexOf('mrb/prb remarks')
+  const rpmoValidatorIndex = indexOf('rpmo level validation (name of validator)')
+  const rpmoRemarksIndex = indexOf('rpmo validator remarks')
   const sexIndex = indexOf('sex')
   const birthdayIndex = indexOf('birthday')
   const contactIndex = indexOf('contact')
@@ -195,11 +202,19 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
     const id = cell(row, entryIdIndex)
     if (!id) return []
     const name = [cell(row, firstNameIndex), cell(row, lastNameIndex)].filter(Boolean).join(' ')
+    const memberFirstName = cell(row, memberFirstIndex)
+    const memberMiddleName = cell(row, memberMiddleIndex)
+    const memberLastName = cell(row, memberLastIndex)
+    const memberGivenNames = [memberFirstName, memberMiddleName].filter(Boolean).join(' ')
+    const studentName = memberLastName && memberGivenNames
+      ? `${memberLastName}, ${memberGivenNames}`
+      : memberLastName || memberGivenNames
     const paymentMode = cell(row, paymentIndex)
     return [{
       id,
       province,
       name,
+      studentName,
       municipality: cell(row, municipalityIndex),
       barangay: cell(row, barangayIndex),
       householdId: cell(row, householdIdIndex),
@@ -214,7 +229,10 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
         controlNo: cell(row, controlNoIndex),
         snapshot: cell(row, snapshotIndex),
         accountNumber2: cell(row, accountNumber2Index),
+        ...(validatedByIndex >= 0 ? { validatedBy: cell(row, validatedByIndex) } : {}),
         remarks: cell(row, remarksIndex),
+        ...(rpmoValidatorIndex >= 0 ? { rpmoValidator: cell(row, rpmoValidatorIndex) } : {}),
+        ...(rpmoRemarksIndex >= 0 ? { rpmoRemarks: cell(row, rpmoRemarksIndex) } : {}),
       },
       personal: {
         sex: cell(row, sexIndex),
@@ -227,7 +245,7 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
         firstGen: cell(row, firstGenIndex),
       },
       education: {
-        member: [cell(row, memberFirstIndex), cell(row, memberMiddleIndex), cell(row, memberLastIndex)].filter(Boolean).join(' '),
+        member: [memberFirstName, memberMiddleName, memberLastName].filter(Boolean).join(' '),
         hei: cell(row, heiIndex),
         heiType: cell(row, heiTypeIndex),
         degree: cell(row, degreeIndex),
@@ -340,3 +358,4 @@ export function summarizeRecords(records: ReviewRecord[], today: string) {
   }
   return { target: records.length, accomplished, today: daily[today] ?? 0, daily }
 }
+
