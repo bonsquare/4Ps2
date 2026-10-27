@@ -8,7 +8,7 @@ import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, matchesReviewQuery, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { beneficiaryList, buildPaymentInsights, buildReport, type ReportScope } from './reports'
-import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
+import { concernDrilldown, CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
 import { ACCOMPLISHMENT_TO_DATE, formatPaymentShare, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
@@ -557,6 +557,17 @@ const pagedConcerns = computed(() => paginateRecords(filteredConcerns.value, con
 watch([concernArea, concernProvince, concernStatus, concernQuery], () => { concernPage.value = 1 })
 watch(concernTotalPages, (pages) => { if (concernPage.value > pages) concernPage.value = pages })
 
+async function showConcernGroup(status: ConcernStatus) {
+  const drilldown = concernDrilldown(status)
+  concernStatus.value = drilldown.status
+  concernArea.value = drilldown.area
+  concernProvince.value = drilldown.province
+  concernQuery.value = drilldown.query
+  concernPage.value = drilldown.page
+  await nextTick()
+  document.getElementById(drilldown.targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 // Clicking a concern opens the Google Sheet on its RESPONSE cell, so it can be answered right there.
 const openInSheet = (item: Concern) => window.open(item.answerUrl, '_blank', 'noopener,noreferrer')
 
@@ -1070,15 +1081,15 @@ onBeforeUnmount(() => {
         <div v-if="concernsError" class="connection-error" role="alert">{{ concernsError }}</div>
         <section class="metrics concern-metrics" aria-label="Concern summary">
           <article><span>Total concerns</span><strong>{{ number.format(concernCounts.total) }}</strong><small>{{ concernAreas.length }} areas of concern</small></article>
-          <article><span>Open</span><strong>{{ number.format(concernCounts.open) }}</strong><small>Waiting for a response</small></article>
-          <article><span>Responded</span><strong>{{ number.format(concernCounts.responded) }}</strong><small>Answered by the team</small></article>
-          <article><span>Resolved</span><strong>{{ number.format(concernCounts.resolved) }}</strong><small>Closed out</small></article>
+          <article class="concern-metric-link" :class="{ active: concernStatus === 'Open' }" role="button" tabindex="0" aria-label="Show open concerns" @click="showConcernGroup('Open')" @keydown.enter.prevent="showConcernGroup('Open')" @keydown.space.prevent="showConcernGroup('Open')"><span>Open</span><strong>{{ number.format(concernCounts.open) }}</strong><small>Waiting for a response</small></article>
+          <article class="concern-metric-link" :class="{ active: concernStatus === 'Responded' }" role="button" tabindex="0" aria-label="Show responded concerns" @click="showConcernGroup('Responded')" @keydown.enter.prevent="showConcernGroup('Responded')" @keydown.space.prevent="showConcernGroup('Responded')"><span>Responded</span><strong>{{ number.format(concernCounts.responded) }}</strong><small>Answered by the team</small></article>
+          <article class="concern-metric-link" :class="{ active: concernStatus === 'Resolved' }" role="button" tabindex="0" aria-label="Show resolved concerns" @click="showConcernGroup('Resolved')" @keydown.enter.prevent="showConcernGroup('Resolved')" @keydown.space.prevent="showConcernGroup('Resolved')"><span>Resolved</span><strong>{{ number.format(concernCounts.resolved) }}</strong><small>Closed out</small></article>
         </section>
         <section class="card area-card"><header><div><h2>Concerns by area</h2><p>Select an area to filter the list below</p></div></header>
           <ul class="area-list"><li v-for="item in areaBreakdown" :key="item.area" :class="{ active: concernArea === item.area }"><button @click="concernArea = concernArea === item.area ? 'all' : item.area"><span class="area-name">{{ item.area }}</span><span class="area-count">{{ item.total }}</span>
             <span class="stack-bar" role="img" :aria-label="`${item.open} open, ${item.responded} responded, ${item.resolved} resolved`"><i class="s-open" :style="{ flex: item.open }"></i><i class="s-responded" :style="{ flex: item.responded }"></i><i class="s-resolved" :style="{ flex: item.resolved }"></i></span></button></li></ul>
           <p class="legend-row"><span><i class="s-open"></i>Open</span><span><i class="s-responded"></i>Responded</span><span><i class="s-resolved"></i>Resolved</span></p></section>
-        <section class="card concern-list"><header><div><h2>Concerns and responses</h2><p>Click a row to open it in Google Sheets and type the response</p></div><strong class="count-chip">{{ number.format(filteredConcerns.length) }} concerns</strong></header>
+        <section id="concern-list" class="card concern-list"><header><div><h2>Concerns and responses</h2><p>Click a row to open it in Google Sheets and type the response</p></div><strong class="count-chip">{{ number.format(filteredConcerns.length) }} concerns</strong></header>
           <div class="review-filters concern-filters">
             <label>Area<select v-model="concernArea"><option value="all">All areas</option><option v-for="item in concernAreas" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Province<select v-model="concernProvince"><option value="all">All provinces</option><option v-for="item in concernProvinces" :key="item" :value="item">{{ item }}</option></select></label>
@@ -1118,4 +1129,3 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
