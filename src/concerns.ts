@@ -6,6 +6,15 @@ export const CONCERNS_GID = '1361573843'
 export const CONCERNS_SHEET_URL = `https://docs.google.com/spreadsheets/d/${CONCERNS_SPREADSHEET_ID}/edit?gid=${CONCERNS_GID}#gid=${CONCERNS_GID}`
 
 export type ConcernStatus = 'Open' | 'Responded' | 'Resolved'
+export const concernDrilldown = (status: ConcernStatus) => ({
+  status,
+  area: 'all' as const,
+  province: 'all' as const,
+  query: '',
+  page: 1,
+  targetId: 'concern-list',
+})
+
 export type Concern = {
   id: string
   area: string
