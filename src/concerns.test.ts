@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getConcerns, parseConcerns } from './concerns'
+import { concernDrilldown, getConcerns, parseConcerns } from './concerns'
 
 const csv = [
   'AREA/s OF CONCERN,PROVINCE,QUESTIONS/ISSUES/CONCERNS/ RECOMMENDATIONS ,RESPONSE,REMARKS',
@@ -37,6 +37,19 @@ describe('answer link', () => {
 
     expect(first.answerUrl).toMatch(/\/edit\?gid=1361573843#gid=1361573843&range=D2$/)
     expect(open.answerUrl).toMatch(/range=D5$/)
+  })
+})
+
+describe('concern summary drilldown', () => {
+  it.each(['Open', 'Responded', 'Resolved'] as const)('filters all concerns into the %s group and targets the list', (status) => {
+    expect(concernDrilldown(status)).toEqual({
+      status,
+      area: 'all',
+      province: 'all',
+      query: '',
+      page: 1,
+      targetId: 'concern-list',
+    })
   })
 })
 
