@@ -86,6 +86,35 @@ describe('summarizeWorksheet', () => {
 })
 
 describe('extractReviewRecords', () => {
+  it('maps MRB and RPMO validation fields from their sheet headers', () => {
+    const csv = [
+      'Entry_id,Name of MRB,MRB/PRB REMARKS,RPMO Level validation (Name of Validator),RPMO Validator Remarks',
+      'E-001,Maria Reviewer,Fully verified,Pedro Validator,Confirmed by RPMO',
+    ].join('\n')
+
+    const [record] = extractReviewRecords(csv, 'Davao del Sur')
+
+    expect(record.payment).toMatchObject({
+      validatedBy: 'Maria Reviewer',
+      remarks: 'Fully verified',
+      rpmoValidator: 'Pedro Validator',
+      rpmoRemarks: 'Confirmed by RPMO',
+    })
+  })
+
+  it('formats the student beneficiary from the member name fields', () => {
+    const csv = [
+      'Entry_id,MEMBER Last name,MEMBER First name,MEMBER Middle name',
+      'E-001,Cruz,Ana,Lim',
+      'E-002,Santos,Ben,',
+    ].join('\n')
+
+    expect(extractReviewRecords(csv, 'Davao del Sur').map((record) => record.studentName)).toEqual([
+      'Cruz, Ana Lim',
+      'Santos, Ben',
+    ])
+  })
+
   it('returns valid beneficiary rows with province, payment status, and safe review fields', () => {
     const csv = [
       'PROVINCE,Entry_id,GRANTEE FIRST_NAME,GRANTEE LAST_NAME,MUNICIPALITY,BARANGAY,Household ID,Account Number,ACCOUNT DESCRIPTION/Mode of Payment,Date Claimed/Account Opened',
@@ -96,13 +125,13 @@ describe('extractReviewRecords', () => {
 
     expect(extractReviewRecords(csv, 'Davao del Sur')).toEqual([
       {
-        id: 'E-001', province: 'Davao del Sur', name: 'Ana Cruz', municipality: 'Digos', barangay: 'San Jose',
+        id: 'E-001', province: 'Davao del Sur', name: 'Ana Cruz', studentName: '', municipality: 'Digos', barangay: 'San Jose',
         householdId: 'HH-001', accountNumber: 'AC-001', paymentMode: 'Cash Card', date: '2026-10-05', accomplished: true,
         payment: { servicingBranch: '', dateRequested: null, dateClaimed: '2026-10-05', controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
         personal: blankPersonal, education: blankEducation,
       },
       {
-        id: 'E-002', province: 'Davao del Sur', name: 'Ben Santos', municipality: 'Bansalan', barangay: 'Poblacion',
+        id: 'E-002', province: 'Davao del Sur', name: 'Ben Santos', studentName: '', municipality: 'Bansalan', barangay: 'Poblacion',
         householdId: 'HH-002', accountNumber: 'AC-002', paymentMode: '', date: null, accomplished: false,
         payment: { servicingBranch: '', dateRequested: null, dateClaimed: null, controlNo: '', snapshot: '', accountNumber2: '', remarks: '' },
         personal: blankPersonal, education: blankEducation,
@@ -251,3 +280,4 @@ describe('getAccomplishmentSnapshot', () => {
     expect(requestedUrls.some((url) => url.includes('gviz'))).toBe(false)
   })
 })
+
