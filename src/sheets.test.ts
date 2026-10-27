@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest'
+import * as sheets from './sheets'
 import { applyFirstSeen, summarizeRecords, contactDetails, paymentDetails, personalInfo, remarksDetails, schoolDetails, statusLabel, extractReviewRecords, filterRecordsByProvince, getAccomplishmentSnapshot, paginateRecords, sortRecordsByValidatedDate, summarizeWorksheet } from './sheets'
 
 const blankPersonal = { sex: '', birthday: '', contact: '', email: '', pwd: '', soloParent: '', indigenous: '', firstGen: '' }
 const blankEducation = { member: '', hei: '', heiType: '', degree: '', yearLevel: '', academicYear: '' }
+
+describe('review search', () => {
+  it('matches every query word against the student beneficiary name in any order', () => {
+    const matchesReviewQuery = (sheets as unknown as {
+      matchesReviewQuery?: (record: Record<string, unknown>, query: string) => boolean
+    }).matchesReviewQuery
+    const record = {
+      name: 'Maria Santos', studentName: 'Cruz, Ana Lim', householdId: 'HH-1', accountNumber: 'AC-1',
+      municipality: 'Digos', barangay: 'San Jose', payment: { remarks: '' },
+    }
+
+    expect(matchesReviewQuery?.(record, 'ana cruz')).toBe(true)
+  })
+})
 
 describe('payment modes', () => {
   it('counts every payment mode as accomplished (GCash, PayMaya, PISO Plus, Visa) and skips blanks', () => {
@@ -88,7 +103,7 @@ describe('summarizeWorksheet', () => {
 describe('extractReviewRecords', () => {
   it('maps MRB and RPMO validation fields from their sheet headers', () => {
     const csv = [
-      'Entry_id,Name of MRB,MRB/PRB REMARKS,RPMO Level validation (Name of Validator),RPMO Validator Remarks',
+      'Entry_id,Name of MRB,MRB/PRB REMARKS,"RPMO Level Validation\n( Name of Validator)",Remarks from Validator',
       'E-001,Maria Reviewer,Fully verified,Pedro Validator,Confirmed by RPMO',
     ].join('\n')
 
