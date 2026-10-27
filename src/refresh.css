@@ -390,6 +390,7 @@ img.report-seal { height: 64px; }
 .mode-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid #cfd8ee; border-radius: 12px; overflow: hidden; }
 .mode-table th { padding: 12px 10px; background: #e8edfb; color: #1e2a55; font-size: 11.5px; line-height: 1.2; letter-spacing: .05em; text-transform: uppercase; text-align: center; border: 1px solid #cfd8ee; white-space: normal; overflow-wrap: normal; }
 .mode-table th:last-child { min-width: 76px; white-space: normal; line-height: 1.2; }
+.mode-table th.not-applicable-heading { width: 78px; min-width: 78px; max-width: 78px; }
 .mode-table td { padding: 12px 10px; text-align: center; border: 1px solid #dfe5f2; }
 .mode-table th:first-child, .mode-table td:first-child { min-width: 104px; text-align: left; white-space: normal; line-height: 1.25; }
 .municipality-mode-table th:first-child, .municipality-mode-table td:first-child { width: 132px; max-width: 132px; overflow-wrap: anywhere; }
