@@ -6,7 +6,7 @@ import { DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, To
 import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
-import { contactDetails, filterRecordsByProvince, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
+import { contactDetails, filterRecordsByProvince, matchesReviewQuery, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
 import { beneficiaryList, buildPaymentInsights, buildReport, type ReportScope } from './reports'
 import { CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
@@ -288,7 +288,6 @@ function clearReviewFilters() {
 }
 const filteredReviewRecords = computed(() => {
   const query = reviewQuery.value.trim().toLowerCase()
-  const queryWords = query.split(/\s+/).filter(Boolean) // a name matches when every word is in it, in any order
   return sortRecordsByValidatedDate(reviewScope.value.filter((record) => {
     if (municipalityActive.value && record.municipality !== municipality.value) return false
     if (!isProvinceView.value && reviewMunicipality.value !== 'all' && record.municipality !== reviewMunicipality.value) return false
@@ -300,8 +299,7 @@ const filteredReviewRecords = computed(() => {
     if (reviewRemarks.value === 'without' && record.payment.remarks) return false
     const matchesStatus = !isProvinceView.value ? (record.accomplished || !!query) : reviewStatus.value === 'all'
       || (reviewStatus.value === 'accomplished' ? record.accomplished : !record.accomplished)
-    const matchesQuery = !query || queryWords.every((word) => record.name.toLowerCase().includes(word)) || [record.name, record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
-      .some((value) => value.toLowerCase().includes(query))
+    const matchesQuery = matchesReviewQuery(record, query)
     return matchesStatus && matchesQuery
   }))
 })
@@ -970,7 +968,7 @@ onBeforeUnmount(() => {
             <label v-if="!isProvinceView">Municipality<select v-model="reviewMunicipality"><option value="all">All municipalities</option><option v-for="item in reviewMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label v-if="isProvinceView">Status<select v-model="reviewStatus"><option value="all">All records</option><option value="accomplished">Validated</option><option value="pending">For Validation</option></select></label>
             <label>Payment mode<select v-model="reviewMode"><option value="all">All modes</option><option v-for="item in reviewModes" :key="item" :value="item">{{ item }}</option></select></label>
-            <label class="review-search">Search<input v-model="reviewQuery" type="search" :placeholder="isProvinceView ? 'Name, household ID, account, location or remarks' : 'Search all provinces: name, household ID, account, location or remarks'" /></label>
+            <label class="review-search">Search<input v-model="reviewQuery" type="search" :placeholder="isProvinceView ? 'Grantee/student name, household ID, account, location or remarks' : 'Search all provinces: grantee/student name, household ID, account, location or remarks'" /></label>
           </div>
           <div class="filter-bar">
           <details class="more-filters" :open="reviewFiltersActive > 0">
@@ -988,7 +986,7 @@ onBeforeUnmount(() => {
           </div>
           </div>
           <p v-if="filteredReviewRecords.length === 0" class="empty-state">No beneficiary records match these filters.</p>
-          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Student Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th class="claimed-head">Date Claimed/Account Opened (LBP servicing Branch)</th><th>Status</th><th>Date validated</th><th>Validated By</th><th>Remarks</th><th>RPMO Level Validation</th><th>RPMO Validator Remarks</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td class="student-beneficiary-cell">{{ record.studentName || '—' }}</td><td class="location-cell">{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td class="nowrap-cell">{{ record.payment.dateClaimed ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.payment.dateClaimed}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td><td class="nowrap-cell">{{ record.validatedDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.validatedDate}T00:00:00+08:00`)) : '—' }}<small v-if="record.validatedAt" class="validated-time">{{ timeLabel(record.validatedAt) }}</small></td><td class="validator-cell">{{ record.payment.validatedBy || '—' }}</td><td class="remarks-cell">{{ record.payment.remarks || '—' }}</td><td class="validator-cell">{{ record.payment.rpmoValidator || '—' }}</td><td class="remarks-cell">{{ record.payment.rpmoRemarks || '—' }}</td></tr></tbody></table></div>
+          <div v-else class="table-scroll"><table><thead><tr><th>Province</th><th>Beneficiary</th><th>Student Beneficiary</th><th>Location</th><th>Household / account</th><th>Payment mode</th><th class="claimed-head">Date Claimed/Account Opened (LBP servicing Branch)</th><th>Status</th><th>Date validated</th><th>Validated By</th><th>Remarks</th><th>RPMO Level Validation</th><th>RPMO Level Validation Remarks</th></tr></thead><tbody><tr v-for="record in pagedReviewRecords" :key="`${record.province}-${record.id}`" class="clickable-row" @click="selectedReviewRecord = record"><td>{{ record.province }}</td><td><button class="beneficiary-link" @click="selectedReviewRecord = record">{{ record.name || 'Name not provided' }}</button></td><td class="student-beneficiary-cell">{{ record.studentName || '—' }}</td><td class="location-cell">{{ [record.municipality, record.barangay].filter(Boolean).join(', ') || '—' }}</td><td>{{ record.accountNumber || record.householdId || '—' }}</td><td>{{ record.paymentMode || '—' }}</td><td class="nowrap-cell">{{ record.payment.dateClaimed ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.payment.dateClaimed}T00:00:00+08:00`)) : '—' }}</td><td><span class="review-status" :class="{ complete: record.accomplished }">{{ statusLabel(record) }}</span></td><td class="nowrap-cell">{{ record.validatedDate ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${record.validatedDate}T00:00:00+08:00`)) : '—' }}<small v-if="record.validatedAt" class="validated-time">{{ timeLabel(record.validatedAt) }}</small></td><td class="validator-cell">{{ record.payment.validatedBy || '—' }}</td><td class="remarks-cell">{{ record.payment.remarks || '—' }}</td><td class="validator-cell">{{ record.payment.rpmoValidator || '—' }}</td><td class="remarks-cell">{{ record.payment.rpmoRemarks || '—' }}</td></tr></tbody></table></div>
           <div v-if="filteredReviewRecords.length > REVIEW_PAGE_SIZE" class="pagination" aria-label="Beneficiary review pages"><button :disabled="reviewPage === 1" @click="reviewPage -= 1">Previous</button><span>Page {{ reviewPage }} of {{ reviewTotalPages }}</span><button :disabled="reviewPage === reviewTotalPages" @click="reviewPage += 1">Next</button></div>
         </section>
         <div v-if="selectedReviewRecord" class="detail-backdrop" role="presentation" @click.self="selectedReviewRecord = null">
