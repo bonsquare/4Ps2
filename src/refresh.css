@@ -185,6 +185,8 @@ input:hover, select:hover { border-color: rgba(20, 38, 58, .28); }
 .review-table th { font-size: 10.5px; letter-spacing: .04em; white-space: normal; line-height: 1.3; vertical-align: middle; }
 .review-table td { vertical-align: middle; }
 .review-table .beneficiary-link { text-align: center; font-size: 12px; }
+.review-table .student-beneficiary-cell { white-space: normal; min-width: 130px; font-weight: 700; }
+.review-table .validator-cell { white-space: normal; min-width: 120px; }
 .review-table td:nth-child(2), .review-table .location-cell, .review-table .remarks-cell { min-width: 0; }
 .review-table .remarks-cell { max-width: 180px; }
 .review-table th.claimed-head { min-width: 0; max-width: 140px; }
@@ -509,3 +511,4 @@ img.report-seal { height: 64px; }
 @media (max-width: 1180px) { .invite-fields { grid-template-columns: repeat(2, minmax(160px, 1fr)); } .invite-fields .primary-button { width: fit-content; } }
 @media (max-width: 560px) { .invite-form { padding: 12px; } .invite-fields { grid-template-columns: 1fr; } .invite-fields .primary-button { width: 100%; } }
 @media (max-width: 560px) { .invite-toolbar, .invitation-monitor-heading { align-items: stretch; flex-direction: column; } .invite-toolbar .primary-button { width: 100%; } .invite-modal { padding: 16px; } }
+
