@@ -83,6 +83,20 @@ export function filterRecordsByProvince<T extends { province: string }>(records:
   return province ? records.filter((record) => record.province === province) : records
 }
 
+type ReviewSearchRecord = Pick<ReviewRecord, 'name' | 'studentName' | 'householdId' | 'accountNumber' | 'municipality' | 'barangay'> & {
+  payment: Pick<PaymentDetails, 'remarks'>
+}
+
+export function matchesReviewQuery(record: ReviewSearchRecord, rawQuery: string) {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) return true
+  const queryWords = query.split(/\s+/).filter(Boolean)
+  const names = [record.name, record.studentName ?? ''].map((value) => value.toLowerCase())
+  if (names.some((name) => queryWords.every((word) => name.includes(word)))) return true
+  return [record.name, record.studentName ?? '', record.householdId, record.accountNumber, record.municipality, record.barangay, record.payment.remarks]
+    .some((value) => value.toLowerCase().includes(query))
+}
+
 const dash = (input: string | null) => input || '—'
 
 export function personalInfo(record: ReviewRecord): Array<[string, string]> {
@@ -179,8 +193,8 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const accountNumber2Index = indexOf('account number2')
   const validatedByIndex = indexOf('name of mrb')
   const remarksIndex = indexOf('mrb/prb remarks')
-  const rpmoValidatorIndex = indexOf('rpmo level validation (name of validator)')
-  const rpmoRemarksIndex = indexOf('rpmo validator remarks')
+  const rpmoValidatorIndex = headers.findIndex((header) => header.replace(/\(\s+/g, '(') === 'rpmo level validation (name of validator)')
+  const rpmoRemarksIndex = headers.findIndex((header) => header === 'remarks from validator' || header === 'rpmo validator remarks')
   const sexIndex = indexOf('sex')
   const birthdayIndex = indexOf('birthday')
   const contactIndex = indexOf('contact')
