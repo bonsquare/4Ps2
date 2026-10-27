@@ -55,3 +55,7 @@ Run `npm test` and `npx vue-tsc -b` before every commit.
 - `main` auto-deploys to Vercel (project `bonieoffice-1324/4-ps2`, about 25 s per build). Pushing is deploying, so only push when asked.
 - Leave the untracked `.claude/` folder out of commits.
 - Commit messages are short imperative sentences describing the change.
+
+## Working rules
+
+- Do not run a skill (Ponytail commands, UI/UX, graphify, claude-mem and the like) unless the user asks for it clearly. If it is unclear whether a skill is wanted, ask first instead of running it.
