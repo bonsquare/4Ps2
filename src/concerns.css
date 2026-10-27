@@ -6,6 +6,11 @@
 .concern-metrics article:nth-child(2) { --c: #f59e0b; --ink: #b45309; --soft: #fffbeb; }
 .concern-metrics article:nth-child(3) { --c: #8b5cf6; --ink: #6d28d9; --soft: #f5f3ff; }
 .concern-metrics article:nth-child(4) { --c: #10b981; --ink: #047857; --soft: #ecfdf5; }
+.concern-metric-link { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.concern-metric-link:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -22px var(--c); }
+.concern-metric-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--c) 32%, transparent); outline-offset: 3px; }
+.concern-metric-link.active { border-color: var(--c); box-shadow: 0 16px 34px -22px var(--c); }
+.concern-list { scroll-margin-top: 20px; }
 
 .sidebar nav button:nth-child(4) i { color: #67e8f9; }
 .sidebar nav button:nth-child(5) i { color: #f9a8d4; }
