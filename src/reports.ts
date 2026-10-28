@@ -32,6 +32,28 @@ export type PaymentInsights = {
   progressLabel: string
 }
 
+export type EnrollmentRow = {
+  name: string
+  enrolled: number
+  notEnrolled: number
+  total: number
+  enrolledPercent: number
+}
+
+export type EnrollmentReport = {
+  childLabel: 'Province' | 'Municipality' | 'Barangay'
+  rows: EnrollmentRow[]
+  total: EnrollmentRow
+}
+
+export type EnrollmentInsights = {
+  enrolled: number
+  notEnrolled: number
+  highest: { name: string; count: number }
+  enrollmentPercent: number
+  progressLabel: string
+}
+
 const percentOf = (actual: number, target: number) => (target ? Math.round((actual / target) * 1000) / 10 : 0)
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 
@@ -104,6 +126,43 @@ export function buildPaymentInsights(report: Report): PaymentInsights {
       : { name: 'No backlog', count: 0 },
     validatedPercent: report.total.percent,
     progressLabel: `${report.total.actual.toLocaleString('en-US')} of ${report.total.target.toLocaleString('en-US')} beneficiaries validated`,
+  }
+}
+
+export function buildEnrollmentReport(records: ReviewRecord[], scope: ReportScope): EnrollmentReport {
+  const childOf = (record: ReviewRecord) => (scope.municipality ? record.barangay : scope.province ? record.municipality : record.province)
+  const groups = new Map<string, EnrollmentRow>()
+  const total: EnrollmentRow = { name: 'TOTAL', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 }
+  const add = (row: EnrollmentRow, status: 'enrolled' | 'not enrolled') => {
+    if (status === 'enrolled') row.enrolled += 1
+    else row.notEnrolled += 1
+    row.total += 1
+  }
+  for (const record of records.filter((item) => inScope(item, scope))) {
+    const name = clean(childOf(record)) || '(Not specified)'
+    if (!groups.has(name)) groups.set(name, { name, enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 })
+    const status = clean(record.enrollmentStatus ?? '').toLowerCase()
+    if (status !== 'enrolled' && status !== 'not enrolled') continue
+    add(groups.get(name) as EnrollmentRow, status)
+    add(total, status)
+  }
+  const rows = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
+  for (const row of [...rows, total]) row.enrolledPercent = percentOf(row.enrolled, row.total)
+  return {
+    childLabel: scope.municipality ? 'Barangay' : scope.province ? 'Municipality' : 'Province',
+    rows,
+    total,
+  }
+}
+
+export function buildEnrollmentInsights(report: EnrollmentReport): EnrollmentInsights {
+  const highest = report.rows.reduce<EnrollmentRow | undefined>((best, row) => !best || row.enrolled > best.enrolled ? row : best, undefined)
+  return {
+    enrolled: report.total.enrolled,
+    notEnrolled: report.total.notEnrolled,
+    highest: highest && highest.enrolled ? { name: highest.name, count: highest.enrolled } : { name: 'No enrollment yet', count: 0 },
+    enrollmentPercent: report.total.enrolledPercent,
+    progressLabel: `${report.total.enrolled.toLocaleString('en-US')} of ${report.total.total.toLocaleString('en-US')} tagged beneficiaries enrolled`,
   }
 }
 

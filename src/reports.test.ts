@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beneficiaryList, buildPaymentInsights, buildReport } from './reports'
+import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport } from './reports'
 import type { ReviewRecord } from './sheets'
 
 const blank = {
@@ -51,6 +51,56 @@ describe('buildReport', () => {
     expect(report.total.modes).toEqual({ GCash: 2, VISA: 1, Paymaya: 1 })
     expect(report.rows[0].modes).toEqual({ GCash: 2, VISA: 1 })
     expect(report.modeShare[0]).toEqual({ mode: 'GCash', count: 2, percent: 50 })
+  })
+})
+
+describe('buildEnrollmentReport', () => {
+  const enrollmentRecords = [
+    { ...record('e1', 'Davao del Sur', 'HAGONOY', 'LELING', ''), enrollmentStatus: 'Enrolled' },
+    { ...record('e2', 'Davao del Sur', 'HAGONOY', 'SACUB', ''), enrollmentStatus: 'not enrolled' },
+    { ...record('e3', 'Davao del Sur', 'PADADA', 'PALILI', ''), enrollmentStatus: '' },
+    { ...record('e4', 'Davao Oriental', 'MATI', 'CENTRAL', ''), enrollmentStatus: ' Enrolled ' },
+    { ...record('e5', 'Davao Oriental', 'MATI', 'CENTRAL', ''), enrollmentStatus: 'Pending' },
+    { ...record('e6', 'Davao City', 'BUNAWAN', 'ILANG', ''), enrollmentStatus: '' },
+  ]
+
+  it('groups only Enrolled and Not Enrolled by province for the regional view', () => {
+    expect(buildEnrollmentReport(enrollmentRecords, {})).toEqual({
+      childLabel: 'Province',
+      rows: [
+        { name: 'Davao City', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 },
+        { name: 'Davao del Sur', enrolled: 1, notEnrolled: 1, total: 2, enrolledPercent: 50 },
+        { name: 'Davao Oriental', enrolled: 1, notEnrolled: 0, total: 1, enrolledPercent: 100 },
+      ],
+      total: { name: 'TOTAL', enrolled: 2, notEnrolled: 1, total: 3, enrolledPercent: 66.7 },
+    })
+  })
+
+  it('groups the selected province by municipality for the provincial view', () => {
+    expect(buildEnrollmentReport(enrollmentRecords, { province: 'Davao del Sur' }).rows).toEqual([
+      { name: 'HAGONOY', enrolled: 1, notEnrolled: 1, total: 2, enrolledPercent: 50 },
+      { name: 'PADADA', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 },
+    ])
+  })
+
+  it('builds a live summary from tagged enrollment records', () => {
+    expect(buildEnrollmentInsights(buildEnrollmentReport(enrollmentRecords, {}))).toEqual({
+      enrolled: 2,
+      notEnrolled: 1,
+      highest: { name: 'Davao del Sur', count: 1 },
+      enrollmentPercent: 66.7,
+      progressLabel: '2 of 3 tagged beneficiaries enrolled',
+    })
+  })
+
+  it('returns a safe live summary before any enrollment status is tagged', () => {
+    expect(buildEnrollmentInsights(buildEnrollmentReport([], {}))).toEqual({
+      enrolled: 0,
+      notEnrolled: 0,
+      highest: { name: 'No enrollment yet', count: 0 },
+      enrollmentPercent: 0,
+      progressLabel: '0 of 0 tagged beneficiaries enrolled',
+    })
   })
 })
 

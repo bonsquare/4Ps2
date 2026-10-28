@@ -7,11 +7,11 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, matchesReviewQuery, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
-import { beneficiaryList, buildPaymentInsights, buildReport, type ReportScope } from './reports'
+import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport, type ReportScope } from './reports'
 import { concernDrilldown, CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
-import { ACCOMPLISHMENT_TO_DATE, formatPaymentShare, isNarrowPaymentChart, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, paymentDonutLabelLine, paymentDonutRadius } from './charts'
+import { ACCOMPLISHMENT_TO_DATE, dailySeriesForMonth, formatPaymentShare, isNarrowPaymentChart, monthRangeNote, PAYMENT_DONUT_GRAPHIC_Z, PAYMENT_DONUT_LABEL_LAYOUT, PAYMENT_DONUT_LABEL_PLACEMENT, PAYMENT_DONUT_MIN_LABEL_ANGLE, paymentDonutLabelLine, paymentDonutLabelOffset, paymentDonutRadius } from './charts'
 import { sortInvitationsByExpiry } from './invitations'
 
 use([BarChart, LineChart, PieChart, DataZoomComponent, GraphicComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
@@ -33,50 +33,17 @@ const provinces = reactive<Province[]>([
   { id: 'occidental', name: 'Davao Occidental', target: 760, accomplished: 604, today: 26 },
 ])
 
-// The trend charts run from the earliest accomplishment date (at least the last 7 days) up to today, one point per day.
-// A scroll bar under the chart lets you move across the dates; it opens on the latest 7 days.
+const currentCoverageMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit' }).format(new Date())
+const coverageMonth = ref(currentCoverageMonth)
 const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
-const MAX_CHART_DAYS = 366
-function dateRange(values: Record<string, number>) {
-  const floor = manilaDate(MAX_CHART_DAYS)
-  const earliest = Object.keys(values).filter((date) => values[date] > 0 && date >= floor).sort()[0]
-  const start = earliest && earliest < manilaDate(6) ? earliest : manilaDate(6)
-  const end = Date.parse(`${manilaDate(0)}T00:00:00Z`)
-  const range: string[] = []
-  for (let time = Date.parse(`${start}T00:00:00Z`); time <= end; time += 86_400_000) range.push(new Date(time).toISOString().slice(0, 10))
-  return range
-}
-function dailySeries(values: Record<string, number>): Array<[string, number]> {
-  return dateRange(values).map((date) => {
-    const day = new Date(`${date}T00:00:00+08:00`)
-    const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }).format(day)
-    const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(day)
-    return [`${weekday}\n${monthDay}`, values[date] ?? 0]
-  })
-}
-const daily = ref<Array<[string, number]>>(dailySeries({}))
+const daily = ref<Array<[string, number]>>(dailySeriesForMonth({}, coverageMonth.value))
 const dailyMap = ref<Record<string, number>>({})
-// Subtitle that splits the counts into the charted dates and any others (e.g. a future date typed in the sheet),
-// so the chart's numbers always add up to the Accomplished total.
-function rangeNote(values: Record<string, number>) {
-  const range = dateRange(values)
-  const shown = new Set(range)
-  let inRange = 0
-  let other = 0
-  for (const [date, value] of Object.entries(values)) {
-    if (shown.has(date)) inRange += value
-    else other += value
-  }
-  const format = (value: number) => value.toLocaleString('en-US')
-  const label = (iso: string) => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`))
-  return `${label(range[0])} – ${label(range[range.length - 1])}: ${format(inRange)}${other ? ` · other dates: ${format(other)}` : ''} · total ${format(inRange + other)}`
-}
 // Scroll bar under a trend chart once there are more than 7 days; the window opens on the latest 7.
 function zoomFor(count: number) {
   if (count <= 7) return { bottom: 36, zoom: [] }
   const window = { startValue: count - 7, endValue: count - 1 }
-  return { bottom: 80, zoom: [
-    { type: 'slider', xAxisIndex: 0, bottom: 8, height: 22, ...window, filterMode: 'none', brushSelect: false, showDataShadow: false, borderColor: 'transparent', backgroundColor: '#eef3f7', fillerColor: 'rgba(29,91,145,.22)', handleSize: '120%', textStyle: { color: '#526377' } },
+  return { bottom: 62, zoom: [
+    { type: 'slider', xAxisIndex: 0, bottom: 10, height: 10, ...window, filterMode: 'none', brushSelect: false, showDataShadow: false, showDetail: false, borderColor: 'transparent', backgroundColor: '#e8eef4', fillerColor: 'rgba(29,91,145,.28)', handleSize: '65%', moveHandleSize: 4 },
     { type: 'inside', xAxisIndex: 0, ...window, filterMode: 'none', zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
   ] }
 }
@@ -181,9 +148,12 @@ const selectedReviewRecord = ref<ReviewRecord | null>(null)
 const chartOne = ref<HTMLElement | null>(null)
 const chartTwo = ref<HTMLElement | null>(null)
 const chartMode = ref<HTMLElement | null>(null)
+const chartEnrollment = ref<HTMLElement | null>(null)
+const enrollmentTableScroll = ref<HTMLElement | null>(null)
 let firstChart: ECharts | null = null
 let secondChart: ECharts | null = null
 let modeChart: ECharts | null = null
+let enrollmentChart: ECharts | null = null
 let refreshTimer: number | undefined
 let unsubscribeAuth: (() => void) | undefined
 let turnstileWidgetId: string | undefined
@@ -463,6 +433,13 @@ const paymentReport = computed(() => {
   return { ...report, rows: [...report.rows].sort((a, b) => order(a.name) - order(b.name)) } // same province order as the other chart
 })
 const paymentInsights = computed(() => buildPaymentInsights(paymentReport.value))
+const enrollmentReport = computed(() => {
+  const report = buildEnrollmentReport(reviewRecords.value, isProvinceView.value ? { province: selectedProvince.value.name } : {})
+  if (isProvinceView.value) return report
+  const order = (name: string) => provinces.findIndex((item) => item.name === name)
+  return { ...report, rows: [...report.rows].sort((a, b) => order(a.name) - order(b.name)) }
+})
+const enrollmentInsights = computed(() => buildEnrollmentInsights(enrollmentReport.value))
 const modeColors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 const modeColor = (index: number) => modeColors[index % modeColors.length]
 function openPaymentReport() {
@@ -475,6 +452,11 @@ function openPaymentRow(name: string) {
   if (isProvinceView.value) { municipality.value = municipality.value === name ? 'all' : name; return }
   selectedProvinceId.value = provinces.find((item) => item.name === name)?.id ?? selectedProvinceId.value
   navigate('province')
+}
+function scrollEnrollmentTable(direction: -1 | 1) {
+  const element = enrollmentTableScroll.value
+  if (!element) return
+  element.scrollBy({ top: direction * Math.max(160, element.clientHeight * 0.72), behavior: 'smooth' })
 }
 const reportLevel = ref<'regional' | 'provincial' | 'municipal'>('regional')
 const reportProvince = ref('')
@@ -641,19 +623,20 @@ async function logout() {
   }
   authBusy.value = false
   menuOpen.value = false
-  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose(); enrollmentChart?.dispose()
 }
 
 function makeCharts() {
-  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose(); enrollmentChart?.dispose()
   if (!chartOne.value || !chartTwo.value || activeView.value === 'reports') return
   firstChart = init(chartOne.value)
   secondChart = init(chartTwo.value)
   makePaymentCharts()
+  makeEnrollmentChart()
   const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
   if (isProvinceView.value) {
     const p = selectedProvince.value
-    const series = dailySeries(scopeSummary.value?.daily ?? p.daily ?? {})
+    const series = dailySeriesForMonth(scopeSummary.value?.daily ?? p.daily ?? {}, coverageMonth.value)
     const zoom = zoomFor(series.length)
     firstChart.setOption({
       grid: { left: 44, right: 18, top: 38, bottom: zoom.bottom }, dataZoom: zoom.zoom,
@@ -718,9 +701,10 @@ function makePaymentCharts() {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, textStyle: { ...text, fontWeight: 600, fontSize: 13 }, itemWidth: 14, itemHeight: 14 },
     series: [{
-      type: 'pie', radius: paymentDonutRadius(chartMode.value.clientWidth), center: ['50%', '45%'], avoidLabelOverlap: true,
+      type: 'pie', radius: paymentDonutRadius(chartMode.value.clientWidth), center: ['50%', '45%'], avoidLabelOverlap: true, minShowLabelAngle: PAYMENT_DONUT_MIN_LABEL_ANGLE,
       itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
       label: { position: 'outside', ...PAYMENT_DONUT_LABEL_LAYOUT, color: '#24364b', fontWeight: 700, fontSize: narrow ? 11 : 13, formatter: (item: { percent?: number }) => formatPaymentShare(Number(item.percent ?? 0)) },
+      labelLayout: (item: { text: string }) => ({ ...PAYMENT_DONUT_LABEL_PLACEMENT, dy: paymentDonutLabelOffset(Number.parseFloat(item.text)) }),
       labelLine: { show: true, ...paymentDonutLabelLine(chartMode.value.clientWidth), lineStyle: { color: '#94a3b8' } },
       data: modeShare.map((item) => ({ name: item.mode, value: item.count, itemStyle: { color: modeColor(modes.indexOf(item.mode)) } })),
     }],
@@ -733,7 +717,30 @@ function makePaymentCharts() {
   })
 }
 
-function handleResize() { firstChart?.resize(); secondChart?.resize(); modeChart?.resize() }
+function makeEnrollmentChart() {
+  if (!chartEnrollment.value || !enrollmentReport.value.total.total) return
+  enrollmentChart = init(chartEnrollment.value)
+  const total = enrollmentReport.value.total
+  enrollmentChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0, textStyle: { color: '#526377', fontWeight: 600, fontSize: 13 } },
+    series: [{
+      type: 'pie', radius: ['48%', '70%'], center: ['50%', '44%'],
+      itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
+      label: { color: '#24364b', fontWeight: 700, formatter: '{b}\n{c}' },
+      data: [
+        { name: 'Enrolled', value: total.enrolled, itemStyle: { color: '#10b981' } },
+        { name: 'Not Enrolled', value: total.notEnrolled, itemStyle: { color: '#f59e0b' } },
+      ],
+    }],
+    graphic: [
+      { type: 'text', left: 'center', top: '34%', style: { text: number.format(total.total), textAlign: 'center', fill: '#24364b', fontSize: 30, fontWeight: 800 } },
+      { type: 'text', left: 'center', top: '44%', style: { text: 'tagged', textAlign: 'center', fill: '#6d7c8c', fontSize: 12, fontWeight: 600 } },
+    ],
+  })
+}
+
+function handleResize() { firstChart?.resize(); secondChart?.resize(); modeChart?.resize(); enrollmentChart?.resize() }
 
 // force skips the server cache so the Refresh button always pulls live sheet data.
 async function loadGoogleSheets(force = false) {
@@ -757,7 +764,7 @@ async function loadGoogleSheets(force = false) {
     provinces.splice(0, provinces.length, ...snapshot.provinces)
     reviewRecords.value = snapshot.records ?? []
     dailyMap.value = Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value]))
-    daily.value = dailySeries(dailyMap.value)
+    daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value)
     lastRefresh.value = new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date())
@@ -773,6 +780,11 @@ async function loadGoogleSheets(force = false) {
 
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
 watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
+watch(coverageMonth, async () => {
+  daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value)
+  await nextTick()
+  makeCharts()
+})
 watch(appAccess, (access) => { if (access === 'approved') { loadGoogleSheets(); loadConcerns() } })
 watch(superAdmin, (isAdmin) => { if (isAdmin) loadProfiles(true) })
 watch(selectedProvinceId, () => { municipality.value = 'all' })
@@ -830,7 +842,7 @@ onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer)
   window.clearInterval(clockTimer)
   unsubscribeAuth?.()
-  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose()
+  firstChart?.dispose(); secondChart?.dispose(); modeChart?.dispose(); enrollmentChart?.dispose()
 })
 </script>
 
@@ -932,6 +944,7 @@ onBeforeUnmount(() => {
             <label v-if="role === 'regional' && isProvinceView">Province<select id="province" v-model="selectedProvinceId"><option v-for="item in provinces" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
             <label v-if="isProvinceView">Municipality<select v-model="municipality"><option value="all">All municipalities</option><option v-for="item in municipalities" :key="item" :value="item">{{ item }}</option></select></label>
             <label>Reporting period<select v-model="period"><option>Today</option><option>This week</option><option>This month</option></select></label>
+            <label>Coverage month<input v-model="coverageMonth" type="month" :max="currentCoverageMonth" /></label>
             <button class="refresh-button refresh-icon-button" :disabled="refreshing" :aria-label="refreshing ? 'Refreshing data' : 'Refresh data'" :title="refreshing ? 'Refreshing data' : 'Refresh data'" @click="refreshData"><svg class="refresh-icon" :class="{ spinning: refreshing }" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
           </div>
         </section>
@@ -944,8 +957,8 @@ onBeforeUnmount(() => {
           <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? rangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : rangeNote(dailyMap) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? monthRangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}, coverageMonth) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : monthRangeNote(dailyMap, coverageMonth) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
         </section>
         <section class="card payment-report">
           <header><div><h2>Mode of Payment</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province' }} · accomplished beneficiaries per payment mode</p></div><button @click="openPaymentReport()">Open report</button></header>
@@ -970,6 +983,34 @@ onBeforeUnmount(() => {
               </aside>
             </div>
           </div>
+        </section>
+        <section class="card payment-report enrollment-report" aria-labelledby="enrollment-title">
+          <header><div><h2 id="enrollment-title">{{ isProvinceView ? 'Provincial Enrollment Overview' : 'Regional Enrollment Overview' }}</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province across Davao Region' }} · tagged beneficiaries only</p></div></header>
+          <div v-if="enrollmentReport.total.total" class="payment-grid">
+            <div class="payment-visual"><div ref="chartEnrollment" class="chart"></div></div>
+            <div class="payment-details">
+              <div class="enrollment-scroll-shell">
+              <div ref="enrollmentTableScroll" class="table-scroll payment-table-scroll" :class="{ 'municipality-table-scroll enrollment-municipality-scroll': isProvinceView }"><table class="mode-table enrollment-table"><thead><tr><th>{{ enrollmentReport.childLabel }}</th><th>Enrolled</th><th>Not Enrolled</th><th>Total Tagged</th><th>Enrollment Rate</th></tr></thead>
+                <tbody><tr v-for="row in enrollmentReport.rows" :key="row.name" @click="openPaymentRow(row.name)"><td><strong>{{ row.name }}</strong></td><td class="enrolled-cell">{{ number.format(row.enrolled) }}</td><td class="not-enrolled-cell">{{ number.format(row.notEnrolled) }}</td><td>{{ number.format(row.total) }}</td><td class="validated-cell"><strong>{{ row.enrolledPercent }}%</strong><span class="mode-bar"><i :style="{ width: `${row.enrolledPercent}%` }"></i></span></td></tr></tbody>
+                <tfoot><tr><th>Total</th><th>{{ number.format(enrollmentReport.total.enrolled) }}</th><th>{{ number.format(enrollmentReport.total.notEnrolled) }}</th><th>{{ number.format(enrollmentReport.total.total) }}</th><th>{{ enrollmentReport.total.enrolledPercent }}%</th></tr></tfoot></table></div>
+              <div v-if="isProvinceView && enrollmentReport.rows.length > 6" class="enrollment-scroll-controls" aria-label="Scroll municipality enrollment table">
+                <button type="button" aria-label="Scroll enrollment table up" title="Scroll up" @click="scrollEnrollmentTable(-1)">▲</button>
+                <button type="button" aria-label="Scroll enrollment table down" title="Scroll down" @click="scrollEnrollmentTable(1)">▼</button>
+              </div>
+              </div>
+              <aside class="payment-insights enrollment-insights" aria-labelledby="enrollment-insights-title">
+                <div class="insights-heading"><div><span class="live-summary-label"><i aria-hidden="true"></i>Live summary</span><h3 id="enrollment-insights-title">Enrollment insights</h3></div><strong>{{ enrollmentInsights.enrollmentPercent }}% enrolled</strong></div>
+                <div class="insight-cards">
+                  <article class="insight-card accomplished"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div><div><span>Total enrolled</span><strong>{{ number.format(enrollmentInsights.enrolled) }}</strong><small>tagged beneficiaries</small></div></article>
+                  <article class="insight-card backlog"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div><div><span>Total not enrolled</span><strong>{{ number.format(enrollmentInsights.notEnrolled) }}</strong><small>tagged beneficiaries</small></div></article>
+                  <article class="insight-card leading"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></div><div><span>Highest enrollment</span><strong>{{ enrollmentInsights.highest.name }}</strong><small>{{ number.format(enrollmentInsights.highest.count) }} enrolled beneficiaries</small></div></article>
+                </div>
+                <div class="insights-progress" aria-label="Overall enrollment progress"><span :style="{ width: `${Math.min(enrollmentInsights.enrollmentPercent, 100)}%` }"></span></div>
+                <p class="insights-progress-label">{{ enrollmentInsights.progressLabel }}</p>
+              </aside>
+            </div>
+          </div>
+          <p v-else class="empty-state">No beneficiaries are marked Enrolled or Not Enrolled yet.</p>
         </section>
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong class="record-pill">{{ number.format(filteredReviewRecords.length) }} records</strong></header>

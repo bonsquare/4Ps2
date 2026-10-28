@@ -284,6 +284,7 @@ body { background:
 .overview-heading .heading-actions { min-width: 0; flex: 0 1 auto; align-items: flex-end; justify-content: center; gap: 8px; padding: 8px; border: 1px solid rgba(99, 102, 241, .13); border-radius: 18px; background: rgba(255, 255, 255, .78); box-shadow: 0 10px 26px -20px rgba(30, 58, 138, .55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .overview-heading .heading-actions label { min-width: 0; flex: 0 1 220px; text-align: center; }
 .overview-heading .heading-actions select { min-width: 0; appearance: none; padding-right: 34px; text-align: center; text-align-last: center; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23334455' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px; }
+.overview-heading .heading-actions input[type="month"] { min-width: 0; min-height: 48px; text-align: center; }
 .overview-heading .heading-actions .refresh-icon-button { position: relative; flex: 0 0 48px; width: 48px; min-width: 48px; height: 48px; margin-left: 8px; padding: 0; border-radius: 14px; }
 .overview-heading .heading-actions .refresh-icon-button::before { content: ''; position: absolute; left: -9px; top: 8px; height: 32px; border-left: 1px solid rgba(99, 102, 241, .2); }
 .overview-heading .heading-actions select, .overview-heading .refresh-button { min-height: 48px; }
@@ -385,6 +386,15 @@ img.report-seal { height: 64px; }
 .payment-grid .chart { width: 100%; max-width: none; height: 460px; min-width: 0; margin: 0; }
 .payment-visual .chart-note { display: grid; place-items: center; min-height: 220px; padding: 24px; text-align: center; }
 .payment-report .chart-note { margin: 14px 0 6px; }
+.enrollment-report { margin-top: 18px; }
+.enrollment-table .enrolled-cell { color: #047857; font-weight: 800; }
+.enrollment-table .not-enrolled-cell { color: #b45309; font-weight: 800; }
+.enrollment-scroll-shell { position: relative; }
+.enrollment-municipality-scroll { max-height: 330px; padding-right: 38px; scroll-behavior: smooth; }
+.enrollment-scroll-controls { position: absolute; z-index: 6; top: 50%; right: 7px; display: grid; gap: 6px; transform: translateY(-50%); }
+.enrollment-scroll-controls button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #b8c5df; border-radius: 50%; background: rgba(255, 255, 255, .94); color: #334b75; font-size: 10px; box-shadow: 0 4px 12px rgba(30, 42, 85, .16); }
+.enrollment-scroll-controls button:hover { background: #eef2ff; border-color: #7c8fbd; }
+.enrollment-scroll-controls button:focus-visible { outline: 3px solid rgba(37, 99, 235, .24); outline-offset: 2px; }
 .payment-report header button { border: 0; background: transparent; color: #1d5b91; font-weight: 750; }
 .payment-details { min-width: 0; display: grid; gap: 14px; align-content: start; }
 .mode-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid #cfd8ee; border-radius: 12px; overflow: hidden; }

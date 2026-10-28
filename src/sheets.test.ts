@@ -113,6 +113,19 @@ describe('summarizeWorksheet', () => {
 })
 
 describe('extractReviewRecords', () => {
+  it('reads Enrolled / Not Enrolled by title and ignores blank values', () => {
+    const csv = [
+      'Enrolled / Not Enrolled,Entry_id,GRANTEE FIRST_NAME,GRANTEE LAST_NAME',
+      'Enrolled,E-001,Maria,Santos',
+      'Not Enrolled,E-002,Ana,Cruz',
+      ',E-003,Liza,Reyes',
+    ].join('\n')
+
+    expect(extractReviewRecords(csv, 'Davao City').map((record) => record.enrollmentStatus)).toEqual([
+      'Enrolled', 'Not Enrolled', '',
+    ])
+  })
+
   it('reads the supplied multiline titles and ignores newly added columns', () => {
     const csv = [
       'NEW FIELD,"SERVICING BRANCH\nFOR LBP CASH CARD ONLY",Entry_id,"ACCOUNT \n DESCRIPTION/Mode of Payment ( Cash Card or E- Walllet",GRANTEE FIRST_NAME,GRANTEE LAST_NAME',
