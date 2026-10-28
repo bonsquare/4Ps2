@@ -36,7 +36,7 @@ const provinces = reactive<Province[]>([
 const currentCoverageMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit' }).format(new Date())
 const coverageMonth = ref(currentCoverageMonth)
 const manilaDate = (daysAgo: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(Date.now() - daysAgo * 86_400_000))
-const daily = ref<Array<[string, number]>>(dailySeriesForMonth({}, coverageMonth.value))
+const daily = ref<Array<[string, number]>>(dailySeriesForMonth({}, coverageMonth.value, manilaDate(0)))
 const dailyMap = ref<Record<string, number>>({})
 // Scroll bar under a trend chart once there are more than 7 days; the window opens on the latest 7.
 function zoomFor(count: number) {
@@ -636,7 +636,7 @@ function makeCharts() {
   const text = { color: '#526377', fontFamily: 'Inter, ui-sans-serif, system-ui' }
   if (isProvinceView.value) {
     const p = selectedProvince.value
-    const series = dailySeriesForMonth(scopeSummary.value?.daily ?? p.daily ?? {}, coverageMonth.value)
+    const series = dailySeriesForMonth(scopeSummary.value?.daily ?? p.daily ?? {}, coverageMonth.value, manilaDate(0))
     const zoom = zoomFor(series.length)
     firstChart.setOption({
       grid: { left: 44, right: 18, top: 38, bottom: zoom.bottom }, dataZoom: zoom.zoom,
@@ -764,7 +764,7 @@ async function loadGoogleSheets(force = false) {
     provinces.splice(0, provinces.length, ...snapshot.provinces)
     reviewRecords.value = snapshot.records ?? []
     dailyMap.value = Object.fromEntries(snapshot.daily.map((item) => [item.date, item.value]))
-    daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value)
+    daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value, manilaDate(0))
     lastRefresh.value = new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date())
@@ -781,7 +781,7 @@ async function loadGoogleSheets(force = false) {
 // appAccess/profileBusy decide when the dashboard actually mounts, so charts must redraw then too.
 watch([activeView, selectedProvinceId, municipality, loggedIn, appAccess, profileBusy], async () => { await nextTick(); makeCharts() })
 watch(coverageMonth, async () => {
-  daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value)
+  daily.value = dailySeriesForMonth(dailyMap.value, coverageMonth.value, manilaDate(0))
   await nextTick()
   makeCharts()
 })
@@ -957,8 +957,8 @@ onBeforeUnmount(() => {
           <article><div class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><span>Completed Today</span><strong>{{ number.format(displayMetrics.today) }}</strong><small>As of latest refresh</small></article>
         </section>
         <section class="chart-grid">
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? monthRangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}, coverageMonth) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
-          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : monthRangeNote(dailyMap, coverageMonth) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Daily Accomplishment' : 'Provincial Performance' }}</h2><p>{{ isProvinceView ? monthRangeNote(scopeSummary?.daily ?? selectedProvince.daily ?? {}, coverageMonth, manilaDate(0)) : 'Target vs. Actual Accomplishments' }}</p></div><span class="status-dot">Current</span></header><div ref="chartOne" class="chart"></div><p v-if="isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
+          <article class="card"><header><div><h2>{{ isProvinceView ? 'Target vs. Actual' : 'Regional Daily Output' }}</h2><p>{{ isProvinceView ? period : monthRangeNote(dailyMap, coverageMonth, manilaDate(0)) }}</p></div></header><div ref="chartTwo" class="chart"></div><p v-if="!isProvinceView" class="chart-note">The sheet has no validation date, so each record is counted on the day it was first detected as validated.</p></article>
         </section>
         <section class="card payment-report">
           <header><div><h2>Mode of Payment</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province' }} · accomplished beneficiaries per payment mode</p></div><button @click="openPaymentReport()">Open report</button></header>

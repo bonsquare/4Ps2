@@ -15,6 +15,19 @@ describe('daily accomplishment coverage month', () => {
     expect(dailySeriesForMonth({}, '2024-02')).toHaveLength(29)
   })
 
+  it('stops the current coverage month at today so future days are not shown as zero', () => {
+    const series = dailySeriesForMonth({ '2026-10-28': 5, '2026-10-29': 9 }, '2026-10', '2026-10-28')
+
+    expect(series).toHaveLength(28)
+    expect(series[27]).toEqual(['Wed\nOct 28', 5])
+    expect(monthRangeNote({ '2026-10-28': 5, '2026-10-29': 9 }, '2026-10', '2026-10-28'))
+      .toBe('Oct 1 – Oct 28: 5')
+  })
+
+  it('keeps completed previous months at their full calendar length', () => {
+    expect(dailySeriesForMonth({}, '2026-09', '2026-10-28')).toHaveLength(30)
+  })
+
   it('summarizes only the selected month without mixing in other dates', () => {
     expect(monthRangeNote({ '2026-09-30': 7, '2026-10-01': 2, '2026-10-31': 3 }, '2026-10'))
       .toBe('Oct 1 – Oct 31: 5')

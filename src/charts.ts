@@ -4,17 +4,18 @@ export const PAYMENT_DONUT_LABEL_LAYOUT = { alignTo: 'labelLine' as const, bleed
 export const PAYMENT_DONUT_LABEL_PLACEMENT = { moveOverlap: 'shiftY' as const, hideOverlap: false }
 export const PAYMENT_DONUT_MIN_LABEL_ANGLE = 0
 
-function datesInMonth(month: string) {
+function datesInMonth(month: string, today?: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(month)
   if (!match) return []
   const year = Number(match[1])
   const monthIndex = Number(match[2]) - 1
   const count = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
-  return Array.from({ length: count }, (_, index) => `${match[1]}-${match[2]}-${String(index + 1).padStart(2, '0')}`)
+  const shownDays = today?.startsWith(`${month}-`) ? Math.min(count, Number(today.slice(8, 10))) : count
+  return Array.from({ length: shownDays }, (_, index) => `${match[1]}-${match[2]}-${String(index + 1).padStart(2, '0')}`)
 }
 
-export function dailySeriesForMonth(values: Record<string, number>, month: string): Array<[string, number]> {
-  return datesInMonth(month).map((date) => {
+export function dailySeriesForMonth(values: Record<string, number>, month: string, today?: string): Array<[string, number]> {
+  return datesInMonth(month, today).map((date) => {
     const day = new Date(`${date}T00:00:00Z`)
     const weekday = new Intl.DateTimeFormat('en-PH', { weekday: 'short', timeZone: 'UTC' }).format(day)
     const monthDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(day)
@@ -22,8 +23,8 @@ export function dailySeriesForMonth(values: Record<string, number>, month: strin
   })
 }
 
-export function monthRangeNote(values: Record<string, number>, month: string) {
-  const dates = datesInMonth(month)
+export function monthRangeNote(values: Record<string, number>, month: string, today?: string) {
+  const dates = datesInMonth(month, today)
   if (!dates.length) return ''
   const total = dates.reduce((sum, date) => sum + (values[date] ?? 0), 0)
   const label = (date: string) => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
