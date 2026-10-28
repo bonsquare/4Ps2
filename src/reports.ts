@@ -62,6 +62,14 @@ export type EnrollmentInsights = {
 const percentOf = (actual: number, target: number) => (target ? Math.round((actual / target) * 1000) / 10 : 0)
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 
+export function enrollmentStatusLabel(record: ReviewRecord) {
+  if (!record.accomplished) return 'Not validated'
+  const status = clean(record.enrollmentStatus ?? '').toLowerCase()
+  if (status === 'enrolled') return 'Enrolled'
+  if (status === 'not enrolled') return 'Not Enrolled'
+  return 'Not Yet Tagged'
+}
+
 export const inScope = (record: ReviewRecord, scope: ReportScope) =>
   (!scope.province || record.province === scope.province) && (!scope.municipality || record.municipality === scope.municipality)
 
@@ -134,13 +142,13 @@ export function buildPaymentInsights(report: Report): PaymentInsights {
   }
 }
 
-export function buildEnrollmentReport(records: ReviewRecord[], scope: ReportScope): EnrollmentReport {
+export function buildEnrollmentReport(records: ReviewRecord[], scope: ReportScope, coverage: ReportCoverage = {}): EnrollmentReport {
   const childOf = (record: ReviewRecord) => (scope.municipality ? record.barangay : scope.province ? record.municipality : record.province)
   const groups = new Map<string, EnrollmentRow>()
   const emptyRow = (name: string): EnrollmentRow => ({ name, validated: 0, enrolled: 0, notEnrolled: 0, untagged: 0, enrolledPercent: 0, notEnrolledPercent: 0, untaggedPercent: 0 })
   const total = emptyRow('TOTAL')
   const add = (row: EnrollmentRow, record: ReviewRecord) => {
-    if (!record.accomplished) return
+    if (!record.accomplished || !validatedInCoverage(record, coverage)) return
     row.validated += 1
     const status = clean(record.enrollmentStatus ?? '').toLowerCase()
     if (status === 'enrolled') row.enrolled += 1

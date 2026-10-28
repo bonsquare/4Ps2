@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport } from './reports'
+import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport, enrollmentStatusLabel } from './reports'
 import type { ReviewRecord } from './sheets'
 
 const blank = {
@@ -105,6 +105,26 @@ describe('buildEnrollmentReport', () => {
       enrollmentPercent: 0,
       progressLabel: '0 enrolled · 0 not enrolled · 0 not yet tagged of 0 validated beneficiaries',
     })
+  })
+
+  it('counts only validated beneficiaries inside the enrollment report date coverage', () => {
+    const datedRecords = [
+      { ...enrollmentRecords[0], validatedDate: '2026-10-28' },
+      { ...enrollmentRecords[1], validatedDate: '2026-10-27' },
+      { ...enrollmentRecords[2], validatedDate: '2026-10-28' },
+    ]
+
+    expect(buildEnrollmentReport(datedRecords, {}, { from: '2026-10-28', to: '2026-10-28' }).total).toEqual({
+      name: 'TOTAL', validated: 2, enrolled: 1, notEnrolled: 0, untagged: 1,
+      enrolledPercent: 50, notEnrolledPercent: 0, untaggedPercent: 50,
+    })
+  })
+
+  it('labels printable beneficiary enrollment statuses consistently', () => {
+    expect(enrollmentStatusLabel(enrollmentRecords[0])).toBe('Enrolled')
+    expect(enrollmentStatusLabel(enrollmentRecords[1])).toBe('Not Enrolled')
+    expect(enrollmentStatusLabel(enrollmentRecords[2])).toBe('Not Yet Tagged')
+    expect(enrollmentStatusLabel(enrollmentRecords[5])).toBe('Not validated')
   })
 })
 

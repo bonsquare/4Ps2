@@ -22,15 +22,16 @@ Live site: https://4-ps2.vercel.app · Repo: https://github.com/bonsquare/4Ps2 (
 All screens work on phones (verified on Android). On screens up to 760px wide the top bar is compact (logo, short title, clock, a "Live" dot, avatar), the metric cards sit two per row with an odd last card spanning the row, and the sidebar becomes a slide-in menu. Phone styles live in `src/mobile.css`.
 
 1. **Login / Register** — picture panel on the left, sign-in card on the right with a **Sign in | Register** switch. Register uses the same Turnstile + Google flow, then the profile form. The left panel is one crisp picture (4Ps social worker in a red vest with a mother and child) with no blur, fade or color overlay. Three lines sit on its sky: "Pantawid Pamilyang Pilipino Program" (largest), "Enhanced Support Services Intervention", and "Regional Program Management Office Monitoring" (outlined badge).
-2. **Regional Overview** — Regional Target, Accomplishment to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments), Regional Daily Output, and Mode of Payment reporting.
-3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, Mode of Payment reporting, beneficiary review list with filters, record detail dialog.
-4. **Reports & Printing** — Report Center: target vs. actual and payment-mode reports by region / province / municipality, date coverage, printable (browser print dialog, white background).
+2. **Regional Overview** — Regional Target, Accomplishment to Date, Remaining Target, Completion Rate, Completed Today; Provincial Performance (target vs. actual accomplishments), Regional Daily Output, Mode of Payment reporting, and Regional Enrollment Overview by province.
+3. **Provincial Overview** — same metrics for one province, municipality and barangay drill-down, Mode of Payment reporting, Provincial Enrollment Overview by municipality, beneficiary review list with filters, record detail dialog.
+4. **Reports & Printing** — Report Center: target vs. actual, payment-mode and enrollment-status reports by region / province / municipality, date coverage, printable (browser print dialog, white background).
 5. **ESSI Community Support** — concerns backed by its own Google Sheet.
 6. **User management** — approvals queue (Super Administrator only).
 
 ### Dashboard controls and municipality table
 
 - Dashboard filters use a centered, responsive control group. Regional Overview keeps its single reporting-period control compact and aligned to the right; Provincial Overview keeps Province, Municipality and Reporting Period controls centered as a group.
+- Reporting Period remains **Today / This week / This month**. A separate Coverage Month control selects the month shown in the daily-output chart, including previous months. For the current month, days after today are omitted rather than displayed as zero accomplishments.
 - Filter labels and selected values are centered. Select fields use a consistent custom disclosure chevron. Refresh Data is an icon-only control with an accessible label and tooltip, separated from the filters by a vertical divider.
 - In Provincial Overview, the municipality payment table has a compact vertical scroll area with a frozen header. The `DUNOT` row is ordered first and remains pinned below the header while the other municipalities scroll.
 
@@ -42,16 +43,33 @@ All screens work on phones (verified on Android). On screens up to 760px wide th
 - A **Live Summary** below the table fills the remaining desktop space with the leading payment mode, highest accomplishment, largest validation backlog, and overall validation progress. The backlog insight uses red warning styling.
 - Summary values come from the same computed report as the table and donut; the card does not maintain a separate data source.
 
+### Enrollment overview card
+
+- Regional Overview groups enrollment by province; Provincial Overview groups the selected province by municipality. The provincial table keeps its header frozen and provides compact up/down controls when the municipality list scrolls.
+- Enrollment monitoring uses **validated beneficiaries as its denominator**, not only beneficiaries that already have an enrollment tag.
+- The donut shows three mutually exclusive groups: **Enrolled**, **Not Enrolled**, and **Not Yet Tagged**. Its center shows the validated total. On narrow screens the donut shrinks slightly and wraps edge-aligned labels so names and counts are not clipped.
+- The table shows Province/Municipality, Validated, Enrollment Status, and Not Yet Tagged. Enrollment Status contains separate progress bars, counts and percentages for Enrolled and Not Enrolled.
+- **Not Yet Tagged** is the variance `Validated − Enrolled − Not Enrolled`; it is the number of validated beneficiaries still missing either recognized enrollment status.
+- The Live Summary shows all four totals: Validated, Enrolled, Not Enrolled, and Not Yet Tagged. The overall progress bar uses Enrolled ÷ Validated.
+- The same report calculation supplies the donut, table and Live Summary so their totals always reconcile.
+- Reports & Printing offers the same enrollment calculation as a folio-ready report at regional, provincial or municipal level. It includes four summary totals, a detailed status/rate table, date coverage based on validation dates, and optional beneficiary names with normalized enrollment labels.
+
 ## Data
 
 ### Source
 Google Sheets workbook `SPREADSHEET_ID` in `src/sheets.ts`, read as CSV, one worksheet per province (Davao Oriental, Davao de Oro, Davao del Norte, Davao City, Davao del Sur, Davao Occidental; ids and gids in `WORKSHEETS`). Read-only: the app never writes to the sheets. Concerns sheet: `src/concerns.ts`.
+
+Worksheet fields are resolved from normalized **header titles**, not fixed spreadsheet letters. Moving a supported column therefore does not change which field the app reads. Header matching ignores capitalization, repeated whitespace and line breaks; the enrollment header also treats `Enrolled / Not Enrolled` and `Enrolled/Not Enrolled` as equivalent.
 
 ### Definitions
 - **Target** = number of rows with a valid `Entry_id` in a province worksheet.
 - **Accomplished / validated** = row has a non-empty value in the **Mode of Payment** column (S). Confirmed by the program office: every mode counts (GCash, PayMaya, PISO Plus, Visa and any other).
 - Payment-mode names are matched without regard to case or extra spaces, displayed using the first encountered spelling, and ordered by validated beneficiary count.
 - **Remaining** = max(target − accomplished, 0). **Completion rate** = accomplished ÷ target, one decimal.
+- **Enrollment status** comes from the `Enrolled / Not Enrolled` header. Values are trimmed and matched case-insensitively as `Enrolled` or `Not Enrolled`.
+- **Enrollment reporting population** = validated rows only. An enrollment value on a row that is not validated does not enter the enrollment report.
+- **Enrolled rate** = enrolled ÷ validated, one decimal. **Not Enrolled rate** = not enrolled ÷ validated, one decimal.
+- **Not Yet Tagged** = max(validated − enrolled − not enrolled, 0). Blank and unrecognized enrollment values on validated rows belong to this group.
 - **Validation date** = the day the system **first saw** the row as accomplished (stored in `accomplishment_log.first_seen`, Asia/Manila date). The sheet has no validation date.
 - **Column T** ("Date Claimed/Account Opened (LBP servicing Branch)") is the date the bank account was opened, **not** a validation date. It must not drive daily counts, Completed Today or the validation date. It is only shown in record details as "Date claimed / account opened".
 - **Completed Today** and **Regional Daily Output** count accomplished rows by validation date.

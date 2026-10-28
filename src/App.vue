@@ -7,7 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { User } from '@supabase/supabase-js'
 import { aggregateProvinces, type Province } from './domain'
 import { contactDetails, filterRecordsByProvince, matchesReviewQuery, paginateRecords, paymentDetails, personalInfo, remarksDetails, schoolDetails, sortRecordsByValidatedDate, statusLabel, summarizeRecords, REVIEW_PAGE_SIZE, type ReviewRecord } from './sheets'
-import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport, type ReportScope } from './reports'
+import { beneficiaryList, buildEnrollmentInsights, buildEnrollmentReport, buildPaymentInsights, buildReport, enrollmentStatusLabel, type ReportScope } from './reports'
 import { concernDrilldown, CONCERNS_SHEET_URL, type Concern, type ConcernStatus } from './concerns'
 import { auth, authClient, authConfigured, googleClientId, googleSignInConfigured, turnstileConfigured, turnstileSiteKey } from './auth'
 import { accessState, isSuperAdmin, type UserProfile } from './access'
@@ -415,8 +415,8 @@ async function signInWithGoogleCredential(response: { credential: string }) {
   }
 }
 
-// ---- Report Center: target vs. actual and payment-mode reports for the region, a province or a municipality ----
-const reportType = ref<'target' | 'payment'>('target')
+// ---- Report Center: target, payment-mode and enrollment reports for the region, a province or a municipality ----
+const reportType = ref<'target' | 'payment' | 'enrollment'>('target')
 // Overview card: accomplished beneficiaries by payment mode. Regional view lists provinces; Provincial view lists the selected province's municipalities.
 const paymentReport = computed(() => {
   const report = buildReport(reviewRecords.value, isProvinceView.value ? { province: selectedProvince.value.name } : {})
@@ -475,13 +475,16 @@ const reportScope = computed<ReportScope>(() => {
 })
 const coverage = computed(() => ({ from: coverageFrom.value, to: coverageTo.value }))
 const report = computed(() => buildReport(reviewRecords.value, reportScope.value, coverage.value))
+const printEnrollmentReport = computed(() => buildEnrollmentReport(reviewRecords.value, reportScope.value, coverage.value))
 // Taller reports print with tighter rows so they still fit one folio sheet where possible.
 const reportDensity = computed(() => {
   const rows = report.value.rows.length + (reportType.value === 'payment' ? report.value.modeShare.length + report.value.rows.length : 0)
   return rows > 20 ? 'tight' : rows > 11 ? 'dense' : ''
 })
 const reportList = computed(() => reportNames.value === 'none' ? [] : beneficiaryList(reviewRecords.value, reportScope.value, reportNames.value, coverage.value))
-const reportHeading = computed(() => `${report.value.level.toUpperCase()} ${reportType.value === 'target' ? 'TARGET VS. ACTUAL ACCOMPLISHMENT REPORT' : 'PAYMENT MODE BREAKDOWN REPORT'}`)
+const reportHeading = computed(() => `${report.value.level.toUpperCase()} ${reportType.value === 'target'
+  ? 'TARGET VS. ACTUAL ACCOMPLISHMENT REPORT'
+  : reportType.value === 'payment' ? 'PAYMENT MODE BREAKDOWN REPORT' : 'ENROLLMENT STATUS REPORT'}`)
 const reportScopeText = computed(() => reportLevel.value === 'regional'
   ? 'Davao Region · All provinces'
   : reportLevel.value === 'provincial'
@@ -1075,14 +1078,14 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else-if="activeView === 'reports'">
-        <section class="page-heading"><div><p class="breadcrumb">Reports & Printing</p><h1>Report Center</h1><p>Build a target vs. actual or payment-mode report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
+        <section class="page-heading"><div><p class="breadcrumb">Reports & Printing</p><h1>Report Center</h1><p>Build a target, payment-mode or enrollment-status report for the region, a province or a municipality, then print or save it as PDF.</p></div><button class="primary-button compact" onclick="window.print()">Print / Save as PDF</button></section>
         <section class="report-layout">
           <aside class="report-controls card"><h2>Report settings</h2>
             <div class="coverage-box"><span class="coverage-title">Date coverage</span>
               <div class="coverage-presets"><button type="button" @click="setCoverage('today')">Today</button><button type="button" @click="setCoverage('week')">Last 7 days</button><button type="button" @click="setCoverage('month')">This month</button><button type="button" @click="setCoverage('all')">All dates</button></div>
               <div class="coverage-dates"><label>From<input v-model="coverageFrom" type="date" :max="coverageTo || undefined" /></label><label>To<input v-model="coverageTo" type="date" :min="coverageFrom || undefined" /></label></div>
               <small>Actual counts beneficiaries validated within these dates. Target stays the full list.</small></div>
-            <label>Report<select v-model="reportType"><option value="target">Target vs. actual accomplishment</option><option value="payment">Payment mode breakdown</option></select></label>
+            <label>Report<select v-model="reportType"><option value="target">Target vs. actual accomplishment</option><option value="payment">Payment mode breakdown</option><option value="enrollment">Enrollment status</option></select></label>
             <label>Level<select v-model="reportLevel"><option v-if="role === 'regional'" value="regional">Regional · by province</option><option value="provincial">Provincial · by municipality</option><option value="municipal">Municipal · by barangay</option></select></label>
             <label v-if="role === 'regional' && reportLevel !== 'regional'">Province<select v-model="reportProvince"><option v-for="item in provinces" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
             <label v-if="reportLevel === 'municipal'">Municipality<select v-model="reportMunicipality"><option v-for="item in reportMunicipalities" :key="item" :value="item">{{ item }}</option></select></label>
@@ -1102,7 +1105,7 @@ onBeforeUnmount(() => {
                 <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th><th>{{ report.total.percent }}%</th></tr></tfoot></table>
             </template>
 
-            <template v-else>
+            <template v-else-if="reportType === 'payment'">
               <table class="report-table share-table"><thead><tr><th>Payment mode</th><th>Validated beneficiaries</th><th>Share of validated</th></tr></thead>
                 <tbody><tr v-for="item in report.modeShare" :key="item.mode"><td>{{ item.mode }}</td><td>{{ number.format(item.count) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${item.percent}%` }"></i></span>{{ item.percent }}%</td></tr><tr v-if="report.modeShare.length === 0"><td colspan="3">No beneficiary has been validated yet.</td></tr></tbody>
                 <tfoot><tr><th>TOTAL VALIDATED</th><th>{{ number.format(report.total.actual) }}</th><th>{{ report.total.actual ? '100%' : '—' }}</th></tr></tfoot></table>
@@ -1112,10 +1115,17 @@ onBeforeUnmount(() => {
                 <tfoot><tr><th>TOTAL</th><th>{{ number.format(report.total.target) }}</th><th v-for="mode in report.modes" :key="mode">{{ number.format(report.total.modes[mode] ?? 0) }}</th><th>{{ number.format(report.total.actual) }}</th><th>{{ number.format(report.total.remaining) }}</th></tr></tfoot></table>
             </template>
 
+            <template v-else>
+              <div class="report-kpis"><div><span>Validated beneficiaries</span><strong>{{ number.format(printEnrollmentReport.total.validated) }}</strong></div><div><span>Enrolled</span><strong>{{ number.format(printEnrollmentReport.total.enrolled) }}</strong></div><div><span>Not Enrolled</span><strong>{{ number.format(printEnrollmentReport.total.notEnrolled) }}</strong></div><div><span>Not Yet Tagged</span><strong>{{ number.format(printEnrollmentReport.total.untagged) }}</strong></div></div>
+              <table class="report-table"><thead><tr><th>{{ printEnrollmentReport.childLabel }}</th><th>Validated</th><th>Enrolled</th><th>Enrolled Rate</th><th>Not Enrolled</th><th>Not Enrolled Rate</th><th>Not Yet Tagged</th></tr></thead>
+                <tbody><tr v-for="row in printEnrollmentReport.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ number.format(row.validated) }}</td><td>{{ number.format(row.enrolled) }}</td><td class="pct-cell"><span class="pct-bar"><i :style="{ width: `${row.enrolledPercent}%` }"></i></span>{{ row.enrolledPercent }}%</td><td>{{ number.format(row.notEnrolled) }}</td><td>{{ row.notEnrolledPercent }}%</td><td>{{ number.format(row.untagged) }}</td></tr></tbody>
+                <tfoot><tr><th>TOTAL</th><th>{{ number.format(printEnrollmentReport.total.validated) }}</th><th>{{ number.format(printEnrollmentReport.total.enrolled) }}</th><th>{{ printEnrollmentReport.total.enrolledPercent }}%</th><th>{{ number.format(printEnrollmentReport.total.notEnrolled) }}</th><th>{{ printEnrollmentReport.total.notEnrolledPercent }}%</th><th>{{ number.format(printEnrollmentReport.total.untagged) }}</th></tr></tfoot></table>
+            </template>
+
             <template v-if="reportNames !== 'none'">
               <h3 class="report-subhead">{{ reportNames === 'validated' ? 'Validated beneficiaries' : 'All beneficiaries' }} ({{ number.format(reportList.length) }})</h3>
-              <table class="report-table names-table"><thead><tr><th>#</th><th>Beneficiary</th><th>Municipality</th><th>Barangay</th><th>Payment mode</th><th>Date validated</th><th>Status</th></tr></thead>
-                <tbody><tr v-for="(person, index) in reportList" :key="`${person.province}-${person.id}`"><td>{{ index + 1 }}</td><td>{{ person.name || 'Name not provided' }}<small v-if="reportLevel === 'regional'">{{ person.province }}</small></td><td>{{ person.municipality || '—' }}</td><td>{{ person.barangay || '—' }}</td><td>{{ person.paymentMode || '—' }}</td><td>{{ dayLabel(person.validatedDate) }}<small v-if="person.validatedAt" class="validated-time">{{ timeLabel(person.validatedAt) }}</small></td><td>{{ statusLabel(person) }}</td></tr></tbody></table>
+              <table class="report-table names-table"><thead><tr><th>#</th><th>Beneficiary</th><th>Municipality</th><th>Barangay</th><th>{{ reportType === 'enrollment' ? 'Enrollment status' : 'Payment mode' }}</th><th>Date validated</th><th>Status</th></tr></thead>
+                <tbody><tr v-for="(person, index) in reportList" :key="`${person.province}-${person.id}`"><td>{{ index + 1 }}</td><td>{{ person.name || 'Name not provided' }}<small v-if="reportLevel === 'regional'">{{ person.province }}</small></td><td>{{ person.municipality || '—' }}</td><td>{{ person.barangay || '—' }}</td><td>{{ reportType === 'enrollment' ? enrollmentStatusLabel(person) : (person.paymentMode || '—') }}</td><td>{{ dayLabel(person.validatedDate) }}<small v-if="person.validatedAt" class="validated-time">{{ timeLabel(person.validatedAt) }}</small></td><td>{{ statusLabel(person) }}</td></tr></tbody></table>
             </template>
 
             <div class="signatures"><div><span>Prepared by:</span><i></i><strong>Name and Signature</strong></div><div><span>Reviewed / Approved by:</span><i></i><strong>Name and Signature</strong></div></div>

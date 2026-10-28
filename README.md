@@ -2,6 +2,15 @@
 
 Vue 3 dashboard for monitoring provincial beneficiary targets and accomplishments from a read-only Google Sheets workbook.
 
+## Dashboard reporting
+
+- Regional and provincial views summarize targets, validated beneficiaries, payment modes and daily accomplishments.
+- The daily-output chart keeps **Today / This week / This month** reporting periods and adds a coverage-month selector for reviewing previous months. Future days are hidden for the current month.
+- Enrollment monitoring is based on validated beneficiaries. It shows Validated, Enrolled, Not Enrolled and Not Yet Tagged totals by province or municipality.
+- Reports & Printing includes a printable Enrollment Status report for regional, provincial and municipal levels, with date coverage and optional beneficiary names.
+- **Enrollment rate** = Enrolled ÷ Validated. **Not Yet Tagged** = Validated − Enrolled − Not Enrolled.
+- Sheet fields are found by their header titles rather than fixed spreadsheet letters, so moving a column does not change which data is read.
+
 ## Local development
 
 ```bash
@@ -27,3 +36,5 @@ npm run build
 ```
 
 The target for each province is the number of valid `Entry_id` rows in its worksheet. A row is counted as accomplished when its payment-mode field is not empty. Every mode counts: GCash, PayMaya, PISO Plus, Visa and any other.
+
+The enrollment field accepts the header `Enrolled / Not Enrolled` with or without spaces around `/`. Only validated rows are included in enrollment reporting; blank or unrecognized enrollment values are counted as Not Yet Tagged.
