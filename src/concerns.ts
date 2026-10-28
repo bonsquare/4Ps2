@@ -25,7 +25,16 @@ export type Concern = {
   answerUrl: string // opens the sheet on this concern's RESPONSE cell, ready to type the answer
 }
 
-const columnLetter = (index: number) => String.fromCharCode(65 + index)
+const columnLetter = (index: number) => {
+  let value = index + 1
+  let letters = ''
+  while (value > 0) {
+    value -= 1
+    letters = String.fromCharCode(65 + (value % 26)) + letters
+    value = Math.floor(value / 26)
+  }
+  return letters
+}
 const answerUrl = (row: number, responseIndex: number) => `${CONCERNS_SHEET_URL}&range=${columnLetter(responseIndex)}${row}`
 
 function statusOf(response: string, remarks: string): ConcernStatus {
@@ -38,15 +47,12 @@ function statusOf(response: string, remarks: string): ConcernStatus {
 export function parseConcerns(csv: string): Concern[] {
   const rows = Papa.parse<string[]>(csv, { skipEmptyLines: false }).data
   const headers = (rows[0] ?? []).map((value) => String(value).replace(/\s+/g, ' ').trim().toLowerCase())
-  const find = (label: string, fallback: number) => {
-    const index = headers.findIndex((header) => header.includes(label))
-    return index >= 0 ? index : fallback
-  }
-  const areaIndex = find('area', 0)
-  const provinceIndex = find('province', 1)
-  const concernIndex = find('question', 2)
-  const responseIndex = find('response', 3)
-  const remarksIndex = find('remarks', 4)
+  const find = (label: string) => headers.findIndex((header) => header.includes(label))
+  const areaIndex = find('area')
+  const provinceIndex = find('province')
+  const concernIndex = find('question')
+  const responseIndex = find('response')
+  const remarksIndex = find('remarks')
 
   let area = ''
   const concerns: Concern[] = []

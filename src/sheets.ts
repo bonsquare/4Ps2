@@ -187,7 +187,7 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const claimedDateIndex = headers.findIndex((header) => header.includes('date claimed') || header.includes('account opened'))
   const requestedDateIndex = headers.findIndex((header) => header.includes('date requested'))
   const dateIndex = claimedDateIndex >= 0 ? claimedDateIndex : requestedDateIndex
-  const servicingBranchIndex = indexOf('servicing branch')
+  const servicingBranchIndex = headers.findIndex((header) => header.startsWith('servicing branch'))
   const controlNoIndex = indexOf('control no.')
   const snapshotIndex = indexOf('snapshot')
   const accountNumber2Index = indexOf('account number2')
@@ -372,4 +372,3 @@ export function summarizeRecords(records: ReviewRecord[], today: string) {
   }
   return { target: records.length, accomplished, today: daily[today] ?? 0, daily }
 }
-

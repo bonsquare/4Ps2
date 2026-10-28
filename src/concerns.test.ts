@@ -11,6 +11,18 @@ const csv = [
 ].join('\n')
 
 describe('parseConcerns', () => {
+  it('finds fields by column title after the columns are rearranged', () => {
+    const rearranged = [
+      'RESPONSE,QUESTIONS/ISSUES/CONCERNS/ RECOMMENDATIONS,REMARKS,PROVINCE,AREA/s OF CONCERN',
+      'Use the updated list,Which list should we use?,Responded,Davao City,IDENTIFICATION',
+    ].join('\n')
+
+    expect(parseConcerns(rearranged)[0]).toMatchObject({
+      area: 'IDENTIFICATION', province: 'Davao City', concern: 'Which list should we use?', response: 'Use the updated list',
+    })
+    expect(parseConcerns(rearranged)[0].answerUrl).toMatch(/range=A2$/)
+  })
+
   it('fills the area down the group, skips blank rows and keeps the province when given', () => {
     const concerns = parseConcerns(csv)
 

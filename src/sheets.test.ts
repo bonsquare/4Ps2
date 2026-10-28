@@ -44,6 +44,18 @@ describe('sortRecordsByValidatedDate', () => {
 })
 
 describe('summarizeWorksheet', () => {
+  it('finds fields by title after the sheet columns are rearranged', () => {
+    const csv = [
+      'ACCOUNT DESCRIPTION/Mode of Payment,GRANTEE LAST_NAME,Entry_id,MUNICIPALITY,GRANTEE FIRST_NAME',
+      'GCash,Santos,E-001,Digos,Maria',
+    ].join('\n')
+
+    expect(summarizeWorksheet(csv)).toMatchObject({ target: 1, accomplished: 1 })
+    expect(extractReviewRecords(csv, 'Davao del Sur')[0]).toMatchObject({
+      id: 'E-001', name: 'Maria Santos', municipality: 'Digos', paymentMode: 'GCash',
+    })
+  })
+
   it('groups qualifying rows by Date Requested without returning personal fields', () => {
     const csv = [
       'PROVINCE,Entry_id,MEMBER First name,ACCOUNT DESCRIPTION/Mode of Payment,Date Requested',
@@ -101,6 +113,17 @@ describe('summarizeWorksheet', () => {
 })
 
 describe('extractReviewRecords', () => {
+  it('reads the supplied multiline titles and ignores newly added columns', () => {
+    const csv = [
+      'NEW FIELD,"SERVICING BRANCH\nFOR LBP CASH CARD ONLY",Entry_id,"ACCOUNT \n DESCRIPTION/Mode of Payment ( Cash Card or E- Walllet",GRANTEE FIRST_NAME,GRANTEE LAST_NAME',
+      'future value,Tagum Branch,E-001,GCash,Maria,Santos',
+    ].join('\n')
+
+    expect(extractReviewRecords(csv, 'Davao del Norte')[0]).toMatchObject({
+      id: 'E-001', name: 'Maria Santos', paymentMode: 'GCash', payment: { servicingBranch: 'Tagum Branch' },
+    })
+  })
+
   it('maps MRB and RPMO validation fields from their sheet headers', () => {
     const csv = [
       'Entry_id,Name of MRB,MRB/PRB REMARKS,"RPMO Level Validation\n( Name of Validator)",Remarks from Validator',
@@ -295,4 +318,3 @@ describe('getAccomplishmentSnapshot', () => {
     expect(requestedUrls.some((url) => url.includes('gviz'))).toBe(false)
   })
 })
-
