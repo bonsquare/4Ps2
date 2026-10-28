@@ -34,10 +34,13 @@ export type PaymentInsights = {
 
 export type EnrollmentRow = {
   name: string
+  validated: number
   enrolled: number
   notEnrolled: number
-  total: number
+  untagged: number
   enrolledPercent: number
+  notEnrolledPercent: number
+  untaggedPercent: number
 }
 
 export type EnrollmentReport = {
@@ -47,8 +50,10 @@ export type EnrollmentReport = {
 }
 
 export type EnrollmentInsights = {
+  validated: number
   enrolled: number
   notEnrolled: number
+  untagged: number
   highest: { name: string; count: number }
   enrollmentPercent: number
   progressLabel: string
@@ -132,22 +137,28 @@ export function buildPaymentInsights(report: Report): PaymentInsights {
 export function buildEnrollmentReport(records: ReviewRecord[], scope: ReportScope): EnrollmentReport {
   const childOf = (record: ReviewRecord) => (scope.municipality ? record.barangay : scope.province ? record.municipality : record.province)
   const groups = new Map<string, EnrollmentRow>()
-  const total: EnrollmentRow = { name: 'TOTAL', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 }
-  const add = (row: EnrollmentRow, status: 'enrolled' | 'not enrolled') => {
+  const emptyRow = (name: string): EnrollmentRow => ({ name, validated: 0, enrolled: 0, notEnrolled: 0, untagged: 0, enrolledPercent: 0, notEnrolledPercent: 0, untaggedPercent: 0 })
+  const total = emptyRow('TOTAL')
+  const add = (row: EnrollmentRow, record: ReviewRecord) => {
+    if (!record.accomplished) return
+    row.validated += 1
+    const status = clean(record.enrollmentStatus ?? '').toLowerCase()
     if (status === 'enrolled') row.enrolled += 1
-    else row.notEnrolled += 1
-    row.total += 1
+    else if (status === 'not enrolled') row.notEnrolled += 1
   }
   for (const record of records.filter((item) => inScope(item, scope))) {
     const name = clean(childOf(record)) || '(Not specified)'
-    if (!groups.has(name)) groups.set(name, { name, enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 })
-    const status = clean(record.enrollmentStatus ?? '').toLowerCase()
-    if (status !== 'enrolled' && status !== 'not enrolled') continue
-    add(groups.get(name) as EnrollmentRow, status)
-    add(total, status)
+    if (!groups.has(name)) groups.set(name, emptyRow(name))
+    add(groups.get(name) as EnrollmentRow, record)
+    add(total, record)
   }
   const rows = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
-  for (const row of [...rows, total]) row.enrolledPercent = percentOf(row.enrolled, row.total)
+  for (const row of [...rows, total]) {
+    row.untagged = Math.max(row.validated - row.enrolled - row.notEnrolled, 0)
+    row.enrolledPercent = percentOf(row.enrolled, row.validated)
+    row.notEnrolledPercent = percentOf(row.notEnrolled, row.validated)
+    row.untaggedPercent = percentOf(row.untagged, row.validated)
+  }
   return {
     childLabel: scope.municipality ? 'Barangay' : scope.province ? 'Municipality' : 'Province',
     rows,
@@ -158,11 +169,13 @@ export function buildEnrollmentReport(records: ReviewRecord[], scope: ReportScop
 export function buildEnrollmentInsights(report: EnrollmentReport): EnrollmentInsights {
   const highest = report.rows.reduce<EnrollmentRow | undefined>((best, row) => !best || row.enrolled > best.enrolled ? row : best, undefined)
   return {
+    validated: report.total.validated,
     enrolled: report.total.enrolled,
     notEnrolled: report.total.notEnrolled,
+    untagged: report.total.untagged,
     highest: highest && highest.enrolled ? { name: highest.name, count: highest.enrolled } : { name: 'No enrollment yet', count: 0 },
     enrollmentPercent: report.total.enrolledPercent,
-    progressLabel: `${report.total.enrolled.toLocaleString('en-US')} of ${report.total.total.toLocaleString('en-US')} tagged beneficiaries enrolled`,
+    progressLabel: `${report.total.enrolled.toLocaleString('en-US')} enrolled · ${report.total.notEnrolled.toLocaleString('en-US')} not enrolled · ${report.total.untagged.toLocaleString('en-US')} not yet tagged of ${report.total.validated.toLocaleString('en-US')} validated beneficiaries`,
   }
 }
 

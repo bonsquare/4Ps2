@@ -56,50 +56,54 @@ describe('buildReport', () => {
 
 describe('buildEnrollmentReport', () => {
   const enrollmentRecords = [
-    { ...record('e1', 'Davao del Sur', 'HAGONOY', 'LELING', ''), enrollmentStatus: 'Enrolled' },
-    { ...record('e2', 'Davao del Sur', 'HAGONOY', 'SACUB', ''), enrollmentStatus: 'not enrolled' },
-    { ...record('e3', 'Davao del Sur', 'PADADA', 'PALILI', ''), enrollmentStatus: '' },
-    { ...record('e4', 'Davao Oriental', 'MATI', 'CENTRAL', ''), enrollmentStatus: ' Enrolled ' },
-    { ...record('e5', 'Davao Oriental', 'MATI', 'CENTRAL', ''), enrollmentStatus: 'Pending' },
+    { ...record('e1', 'Davao del Sur', 'HAGONOY', 'LELING', 'Cash Card'), enrollmentStatus: 'Enrolled' },
+    { ...record('e2', 'Davao del Sur', 'HAGONOY', 'SACUB', 'GCash'), enrollmentStatus: 'not enrolled' },
+    { ...record('e3', 'Davao del Sur', 'PADADA', 'PALILI', 'Visa'), enrollmentStatus: '' },
+    { ...record('e4', 'Davao Oriental', 'MATI', 'CENTRAL', 'Cash Card'), enrollmentStatus: ' Enrolled ' },
+    { ...record('e5', 'Davao Oriental', 'MATI', 'CENTRAL', 'PayMaya'), enrollmentStatus: 'Pending' },
     { ...record('e6', 'Davao City', 'BUNAWAN', 'ILANG', ''), enrollmentStatus: '' },
   ]
 
-  it('groups only Enrolled and Not Enrolled by province for the regional view', () => {
+  it('bases province enrollment counts and rates on validated beneficiaries', () => {
     expect(buildEnrollmentReport(enrollmentRecords, {})).toEqual({
       childLabel: 'Province',
       rows: [
-        { name: 'Davao City', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 },
-        { name: 'Davao del Sur', enrolled: 1, notEnrolled: 1, total: 2, enrolledPercent: 50 },
-        { name: 'Davao Oriental', enrolled: 1, notEnrolled: 0, total: 1, enrolledPercent: 100 },
+        { name: 'Davao City', validated: 0, enrolled: 0, notEnrolled: 0, untagged: 0, enrolledPercent: 0, notEnrolledPercent: 0, untaggedPercent: 0 },
+        { name: 'Davao del Sur', validated: 3, enrolled: 1, notEnrolled: 1, untagged: 1, enrolledPercent: 33.3, notEnrolledPercent: 33.3, untaggedPercent: 33.3 },
+        { name: 'Davao Oriental', validated: 2, enrolled: 1, notEnrolled: 0, untagged: 1, enrolledPercent: 50, notEnrolledPercent: 0, untaggedPercent: 50 },
       ],
-      total: { name: 'TOTAL', enrolled: 2, notEnrolled: 1, total: 3, enrolledPercent: 66.7 },
+      total: { name: 'TOTAL', validated: 5, enrolled: 2, notEnrolled: 1, untagged: 2, enrolledPercent: 40, notEnrolledPercent: 20, untaggedPercent: 40 },
     })
   })
 
   it('groups the selected province by municipality for the provincial view', () => {
     expect(buildEnrollmentReport(enrollmentRecords, { province: 'Davao del Sur' }).rows).toEqual([
-      { name: 'HAGONOY', enrolled: 1, notEnrolled: 1, total: 2, enrolledPercent: 50 },
-      { name: 'PADADA', enrolled: 0, notEnrolled: 0, total: 0, enrolledPercent: 0 },
+      { name: 'HAGONOY', validated: 2, enrolled: 1, notEnrolled: 1, untagged: 0, enrolledPercent: 50, notEnrolledPercent: 50, untaggedPercent: 0 },
+      { name: 'PADADA', validated: 1, enrolled: 0, notEnrolled: 0, untagged: 1, enrolledPercent: 0, notEnrolledPercent: 0, untaggedPercent: 100 },
     ])
   })
 
-  it('builds a live summary from tagged enrollment records', () => {
+  it('builds a live summary from all validated enrollment records', () => {
     expect(buildEnrollmentInsights(buildEnrollmentReport(enrollmentRecords, {}))).toEqual({
+      validated: 5,
       enrolled: 2,
       notEnrolled: 1,
+      untagged: 2,
       highest: { name: 'Davao del Sur', count: 1 },
-      enrollmentPercent: 66.7,
-      progressLabel: '2 of 3 tagged beneficiaries enrolled',
+      enrollmentPercent: 40,
+      progressLabel: '2 enrolled · 1 not enrolled · 2 not yet tagged of 5 validated beneficiaries',
     })
   })
 
   it('returns a safe live summary before any enrollment status is tagged', () => {
     expect(buildEnrollmentInsights(buildEnrollmentReport([], {}))).toEqual({
+      validated: 0,
       enrolled: 0,
       notEnrolled: 0,
+      untagged: 0,
       highest: { name: 'No enrollment yet', count: 0 },
       enrollmentPercent: 0,
-      progressLabel: '0 of 0 tagged beneficiaries enrolled',
+      progressLabel: '0 enrolled · 0 not enrolled · 0 not yet tagged of 0 validated beneficiaries',
     })
   })
 })

@@ -389,6 +389,17 @@ img.report-seal { height: 64px; }
 .enrollment-report { margin-top: 18px; }
 .enrollment-table .enrolled-cell { color: #047857; font-weight: 800; }
 .enrollment-table .not-enrolled-cell { color: #b45309; font-weight: 800; }
+.enrollment-status-cell { min-width: 230px; }
+.enrollment-status-line { display: grid; grid-template-columns: 68px minmax(24px, auto) minmax(42px, 1fr) 38px; align-items: center; gap: 6px; }
+.enrollment-status-line + .enrollment-status-line { margin-top: 7px; padding-top: 7px; border-top: 1px solid #e5eaf4; }
+.enrollment-status-line > small:first-child { color: #64748b; font-size: 9px; font-weight: 750; text-align: left; white-space: nowrap; }
+.enrollment-status-line > small:last-child { color: #64748b; font-size: 10px; font-weight: 700; text-align: right; }
+.enrollment-status-line strong { text-align: left; }
+.enrolled-status strong { color: #047857; }
+.not-enrolled-status strong { color: #b45309; }
+.not-enrolled-status .mode-bar i { background: linear-gradient(90deg, #f59e0b, #fb7185); }
+.untagged-variance strong { display: block; color: #475569; font-size: 14px; }
+.untagged-variance small { display: block; margin-top: 3px; color: #64748b; font-size: 9px; font-weight: 650; white-space: nowrap; }
 .enrollment-scroll-shell { position: relative; }
 .enrollment-municipality-scroll { max-height: 330px; padding-right: 38px; scroll-behavior: smooth; }
 .enrollment-scroll-controls { position: absolute; z-index: 6; top: 50%; right: 7px; display: grid; gap: 6px; transform: translateY(-50%); }
@@ -440,6 +451,7 @@ img.report-seal { height: 64px; }
 .insights-heading h3 { margin: 0; color: #1f2f46; font-size: 16px; letter-spacing: -.01em; }
 .insights-heading > strong { flex: 0 0 auto; padding: 6px 10px; border: 1px solid rgba(16, 185, 129, .18); border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; }
 .insight-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.enrollment-insights .insight-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .insight-card { position: relative; min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: start; gap: 9px; padding: 11px 10px 10px 13px; border: 1px solid #dfe7f7; border-radius: 12px; background: linear-gradient(145deg, #eff6ff, #fff 72%); overflow: hidden; }
 .insight-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: #2563eb; }
 .insight-card.accomplished { border-color: #d7f1e8; background: linear-gradient(145deg, #ecfdf5, #fff 72%); }

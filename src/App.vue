@@ -718,24 +718,31 @@ function makePaymentCharts() {
 }
 
 function makeEnrollmentChart() {
-  if (!chartEnrollment.value || !enrollmentReport.value.total.total) return
+  if (!chartEnrollment.value || !enrollmentReport.value.total.validated) return
   enrollmentChart = init(chartEnrollment.value)
   const total = enrollmentReport.value.total
+  const narrow = chartEnrollment.value.clientWidth < 500
   enrollmentChart.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: '#526377', fontWeight: 600, fontSize: 13 } },
+    legend: { bottom: 0, itemGap: narrow ? 10 : 14, textStyle: { color: '#526377', fontWeight: 600, fontSize: narrow ? 11 : 13 } },
     series: [{
-      type: 'pie', radius: ['48%', '70%'], center: ['50%', '44%'],
+      type: 'pie', radius: narrow ? ['42%', '61%'] : ['48%', '70%'], center: ['50%', narrow ? '42%' : '44%'],
       itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
-      label: { color: '#24364b', fontWeight: 700, formatter: '{b}\n{c}' },
+      label: {
+        color: '#24364b', fontWeight: 700, fontSize: narrow ? 11 : 12, lineHeight: narrow ? 14 : 16,
+        formatter: '{b}\n{c}', overflow: 'break', width: narrow ? 82 : undefined,
+        alignTo: narrow ? 'edge' : 'none', edgeDistance: narrow ? 10 : undefined, bleedMargin: 4,
+      },
+      labelLine: { length: narrow ? 10 : 15, length2: narrow ? 6 : 10 },
       data: [
         { name: 'Enrolled', value: total.enrolled, itemStyle: { color: '#10b981' } },
         { name: 'Not Enrolled', value: total.notEnrolled, itemStyle: { color: '#f59e0b' } },
+        { name: 'Not Yet Tagged', value: total.untagged, itemStyle: { color: '#94a3b8' } },
       ],
     }],
     graphic: [
-      { type: 'text', left: 'center', top: '34%', style: { text: number.format(total.total), textAlign: 'center', fill: '#24364b', fontSize: 30, fontWeight: 800 } },
-      { type: 'text', left: 'center', top: '44%', style: { text: 'tagged', textAlign: 'center', fill: '#6d7c8c', fontSize: 12, fontWeight: 600 } },
+      { type: 'text', left: 'center', top: '34%', style: { text: number.format(total.validated), textAlign: 'center', fill: '#24364b', fontSize: 30, fontWeight: 800 } },
+      { type: 'text', left: 'center', top: '44%', style: { text: 'validated', textAlign: 'center', fill: '#6d7c8c', fontSize: 12, fontWeight: 600 } },
     ],
   })
 }
@@ -985,14 +992,14 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <section class="card payment-report enrollment-report" aria-labelledby="enrollment-title">
-          <header><div><h2 id="enrollment-title">{{ isProvinceView ? 'Provincial Enrollment Overview' : 'Regional Enrollment Overview' }}</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province across Davao Region' }} · tagged beneficiaries only</p></div></header>
-          <div v-if="enrollmentReport.total.total" class="payment-grid">
+          <header><div><h2 id="enrollment-title">{{ isProvinceView ? 'Provincial Enrollment Overview' : 'Regional Enrollment Overview' }}</h2><p>{{ isProvinceView ? 'Breakdown by municipality · ' + selectedProvince.name : 'Breakdown by province across Davao Region' }} · based on validated beneficiaries</p></div></header>
+          <div v-if="enrollmentReport.total.validated" class="payment-grid">
             <div class="payment-visual"><div ref="chartEnrollment" class="chart"></div></div>
             <div class="payment-details">
               <div class="enrollment-scroll-shell">
-              <div ref="enrollmentTableScroll" class="table-scroll payment-table-scroll" :class="{ 'municipality-table-scroll enrollment-municipality-scroll': isProvinceView }"><table class="mode-table enrollment-table"><thead><tr><th>{{ enrollmentReport.childLabel }}</th><th>Enrolled</th><th>Not Enrolled</th><th>Total Tagged</th><th>Enrollment Rate</th></tr></thead>
-                <tbody><tr v-for="row in enrollmentReport.rows" :key="row.name" @click="openPaymentRow(row.name)"><td><strong>{{ row.name }}</strong></td><td class="enrolled-cell">{{ number.format(row.enrolled) }}</td><td class="not-enrolled-cell">{{ number.format(row.notEnrolled) }}</td><td>{{ number.format(row.total) }}</td><td class="validated-cell"><strong>{{ row.enrolledPercent }}%</strong><span class="mode-bar"><i :style="{ width: `${row.enrolledPercent}%` }"></i></span></td></tr></tbody>
-                <tfoot><tr><th>Total</th><th>{{ number.format(enrollmentReport.total.enrolled) }}</th><th>{{ number.format(enrollmentReport.total.notEnrolled) }}</th><th>{{ number.format(enrollmentReport.total.total) }}</th><th>{{ enrollmentReport.total.enrolledPercent }}%</th></tr></tfoot></table></div>
+              <div ref="enrollmentTableScroll" class="table-scroll payment-table-scroll" :class="{ 'municipality-table-scroll enrollment-municipality-scroll': isProvinceView }"><table class="mode-table enrollment-table"><thead><tr><th>{{ enrollmentReport.childLabel }}</th><th>Validated</th><th>Enrollment Status</th><th>Not Yet Tagged</th></tr></thead>
+                <tbody><tr v-for="row in enrollmentReport.rows" :key="row.name" @click="openPaymentRow(row.name)"><td><strong>{{ row.name }}</strong></td><td><strong>{{ number.format(row.validated) }}</strong></td><td class="enrollment-status-cell"><div class="enrollment-status-line enrolled-status"><small>Enrolled</small><strong>{{ number.format(row.enrolled) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.enrolledPercent, 100)}%` }"></i></span><small>{{ row.enrolledPercent }}%</small></div><div class="enrollment-status-line not-enrolled-status"><small>Not Enrolled</small><strong>{{ number.format(row.notEnrolled) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(row.notEnrolledPercent, 100)}%` }"></i></span><small>{{ row.notEnrolledPercent }}%</small></div></td><td class="untagged-variance"><strong>{{ number.format(row.untagged) }}</strong><small>remaining untagged</small></td></tr></tbody>
+                <tfoot><tr><th>Total</th><th>{{ number.format(enrollmentReport.total.validated) }}</th><th class="enrollment-status-cell"><div class="enrollment-status-line enrolled-status"><small>Enrolled</small><strong>{{ number.format(enrollmentReport.total.enrolled) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(enrollmentReport.total.enrolledPercent, 100)}%` }"></i></span><small>{{ enrollmentReport.total.enrolledPercent }}%</small></div><div class="enrollment-status-line not-enrolled-status"><small>Not Enrolled</small><strong>{{ number.format(enrollmentReport.total.notEnrolled) }}</strong><span class="mode-bar"><i :style="{ width: `${Math.min(enrollmentReport.total.notEnrolledPercent, 100)}%` }"></i></span><small>{{ enrollmentReport.total.notEnrolledPercent }}%</small></div></th><th class="untagged-variance"><strong>{{ number.format(enrollmentReport.total.untagged) }}</strong><small>remaining untagged</small></th></tr></tfoot></table></div>
               <div v-if="isProvinceView && enrollmentReport.rows.length > 6" class="enrollment-scroll-controls" aria-label="Scroll municipality enrollment table">
                 <button type="button" aria-label="Scroll enrollment table up" title="Scroll up" @click="scrollEnrollmentTable(-1)">▲</button>
                 <button type="button" aria-label="Scroll enrollment table down" title="Scroll down" @click="scrollEnrollmentTable(1)">▼</button>
@@ -1001,16 +1008,17 @@ onBeforeUnmount(() => {
               <aside class="payment-insights enrollment-insights" aria-labelledby="enrollment-insights-title">
                 <div class="insights-heading"><div><span class="live-summary-label"><i aria-hidden="true"></i>Live summary</span><h3 id="enrollment-insights-title">Enrollment insights</h3></div><strong>{{ enrollmentInsights.enrollmentPercent }}% enrolled</strong></div>
                 <div class="insight-cards">
-                  <article class="insight-card accomplished"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div><div><span>Total enrolled</span><strong>{{ number.format(enrollmentInsights.enrolled) }}</strong><small>tagged beneficiaries</small></div></article>
-                  <article class="insight-card backlog"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div><div><span>Total not enrolled</span><strong>{{ number.format(enrollmentInsights.notEnrolled) }}</strong><small>tagged beneficiaries</small></div></article>
-                  <article class="insight-card leading"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></div><div><span>Highest enrollment</span><strong>{{ enrollmentInsights.highest.name }}</strong><small>{{ number.format(enrollmentInsights.highest.count) }} enrolled beneficiaries</small></div></article>
+                  <article class="insight-card leading"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/><circle cx="12" cy="12" r="9"/></svg></div><div><span>Validated</span><strong>{{ number.format(enrollmentInsights.validated) }}</strong><small>total beneficiaries</small></div></article>
+                  <article class="insight-card accomplished"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div><div><span>Total enrolled</span><strong>{{ number.format(enrollmentInsights.enrolled) }}</strong><small>of {{ number.format(enrollmentInsights.validated) }} validated</small></div></article>
+                  <article class="insight-card backlog"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div><div><span>Total not enrolled</span><strong>{{ number.format(enrollmentInsights.notEnrolled) }}</strong><small>of {{ number.format(enrollmentInsights.validated) }} validated</small></div></article>
+                  <article class="insight-card leading"><div class="insight-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></div><div><span>Not yet tagged</span><strong>{{ number.format(enrollmentInsights.untagged) }}</strong><small>validated beneficiaries</small></div></article>
                 </div>
                 <div class="insights-progress" aria-label="Overall enrollment progress"><span :style="{ width: `${Math.min(enrollmentInsights.enrollmentPercent, 100)}%` }"></span></div>
                 <p class="insights-progress-label">{{ enrollmentInsights.progressLabel }}</p>
               </aside>
             </div>
           </div>
-          <p v-else class="empty-state">No beneficiaries are marked Enrolled or Not Enrolled yet.</p>
+          <p v-else class="empty-state">No validated beneficiaries are available yet.</p>
         </section>
         <section class="card review-table" aria-labelledby="review-title">
           <header><div><h2 id="review-title">Beneficiary review</h2><p>Live records from the provincial Google Sheets</p></div><strong class="record-pill">{{ number.format(filteredReviewRecords.length) }} records</strong></header>
