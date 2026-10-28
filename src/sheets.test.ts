@@ -126,6 +126,17 @@ describe('extractReviewRecords', () => {
     ])
   })
 
+  it('reads Davao del Norte enrollment when the header has no spaces around the slash', () => {
+    const csv = [
+      'Entry_id,Enrolled/Not Enrolled,GRANTEE FIRST_NAME,GRANTEE LAST_NAME',
+      'E-001,Enrolled,Maria,Santos',
+      'E-002,Not Enrolled,Ana,Cruz',
+    ].join('\n')
+
+    expect(extractReviewRecords(csv, 'Davao del Norte').map((record) => record.enrollmentStatus))
+      .toEqual(['Enrolled', 'Not Enrolled'])
+  })
+
   it('reads the supplied multiline titles and ignores newly added columns', () => {
     const csv = [
       'NEW FIELD,"SERVICING BRANCH\nFOR LBP CASH CARD ONLY",Entry_id,"ACCOUNT \n DESCRIPTION/Mode of Payment ( Cash Card or E- Walllet",GRANTEE FIRST_NAME,GRANTEE LAST_NAME',

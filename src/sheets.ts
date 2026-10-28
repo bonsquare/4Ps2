@@ -185,7 +185,7 @@ export function extractReviewRecords(csv: string, province: string): ReviewRecor
   const householdIdIndex = indexOf('household id')
   const accountNumberIndex = headers.findIndex((header) => header === 'account number')
   const paymentIndex = headers.findIndex((header) => header.includes('mode of payment'))
-  const enrollmentIndex = headers.findIndex((header) => header === 'enrolled / not enrolled')
+  const enrollmentIndex = headers.findIndex((header) => header.replace(/\s*\/\s*/g, '/') === 'enrolled/not enrolled')
   const claimedDateIndex = headers.findIndex((header) => header.includes('date claimed') || header.includes('account opened'))
   const requestedDateIndex = headers.findIndex((header) => header.includes('date requested'))
   const dateIndex = claimedDateIndex >= 0 ? claimedDateIndex : requestedDateIndex
